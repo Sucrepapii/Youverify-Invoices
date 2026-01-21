@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { API_ENDPOINTS } from '../config/api';
 import {
   Close,
   Mail,
@@ -195,7 +196,7 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('http://localhost:8080/events', {
+      const response = await fetch(API_ENDPOINTS.EVENTS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

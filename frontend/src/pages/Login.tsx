@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Mail, Lock, Loader2 } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -17,7 +18,7 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    const endpoint = isLoginMode ? 'http://localhost:8080/auth/login' : 'http://localhost:8080/auth/signup';
+    const endpoint = isLoginMode ? API_ENDPOINTS.AUTH.LOGIN : API_ENDPOINTS.AUTH.SIGNUP;
 
     try {
       const response = await fetch(endpoint, {
