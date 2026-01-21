@@ -40,6 +40,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check endpoint
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "YouVerify Invoice Backend API is running",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Routes
 app.use("/auth", authRoutes);
 app.use("/events", eventsRoutes);
