@@ -13,6 +13,7 @@ import {
   MoreVert,
   Business
 } from '@mui/icons-material';
+import { generateInvoicePDF } from '../util/PDFGenerator';
 
 interface InvoiceItem {
   id: number;
@@ -196,18 +197,20 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(API_ENDPOINTS.EVENTS, {
+      const response = await fetch(API_ENDPOINTS.INVOICES, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          title: `Invoice ${formData.invoiceNo}`,
-          description: `Invoice for ${formData.customer.name}`,
+          ...formData,
+          title: formData.customer.name, // Use customer name as title for better listing
+          clientName: formData.customer.name,
+          amount: totalAmount.toFixed(2),
+          status: action === 'send' ? 'pending payment' : 'draft',
           date: formData.invoiceDate,
-          image: 'https://via.placeholder.com/300',
-          location: 'Online',
+          image: 'https://via.placeholder.com/300', // Placeholder for backward compatibility
         }),
       });
 
@@ -279,7 +282,9 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
 
             {/* Action Buttons */}
             <div className="flex items-center space-x-3">
-              <button className="text-blue-600 hover:text-blue-700 font-medium text-sm px-4 py-2 border border-blue-600 rounded-lg hover:bg-blue-50 transition">
+              <button 
+                onClick={() => generateInvoicePDF(formData)}
+                className="text-blue-600 hover:text-blue-700 font-medium text-sm px-4 py-2 border border-blue-600 rounded-lg hover:bg-blue-50 transition">
                 DOWNLOAD AS PDF
               </button>
 
@@ -766,9 +771,9 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
             </button>
             <button
               type="submit"
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                 e.preventDefault();
-                handleSubmit(e as any);
+                handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
               }}
               disabled={isSubmitting}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"

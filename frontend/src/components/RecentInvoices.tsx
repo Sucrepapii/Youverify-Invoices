@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { API_ENDPOINTS } from '../config/api';
+import { useAuth } from '../context/AuthContext';
+import { generateInvoicePDF, InvoiceData } from '../util/PDFGenerator';
+import { toast } from 'react-toastify';
+import { Download } from '@mui/icons-material';
 
 type InvoiceStatus = 'paid' | 'overdue' | 'draft' | 'pending payment';
-
 
 interface Invoice {
   id: string;
@@ -10,65 +14,38 @@ interface Invoice {
   dueDate: string;
   amount: string;
   status: InvoiceStatus;
+  clientName: string;
+  title: string;
+  // This might contain the full InvoiceData if we store it
+  formData?: InvoiceData;
 }
 
 const RecentInvoices: React.FC = () => {
-  const invoicesByDate: Record<string, Invoice[]> = {
-    'TODAY - 27TH NOVEMBER, 2022': [
-      {
-        id: '1',
-        invoiceNumber: '1023494 - 2304',
-        date: 'TODAY - 27TH NOVEMBER, 2022',
-        dueDate: 'May 19th, 2023',
-        amount: '$1,311,750.12',
-        status: 'paid'
-      },
-      {
-        id: '2',
-        invoiceNumber: '1023494 - 2304',
-        date: 'TODAY - 27TH NOVEMBER, 2022',
-        dueDate: 'May 19th, 2023',
-        amount: '$1,311,750.12',
-        status: 'overdue'
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { token } = useAuth();
+
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.INVOICES, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch invoices');
+        const data = await response.json();
+        setInvoices(data.invoices);
+      } catch (error) {
+        console.error('Error fetching invoices:', error);
+        toast.error('Failed to load invoices');
+      } finally {
+        setIsLoading(false);
       }
-    ],
-    '8TH DECEMBER, 2022': [
-      {
-        id: '3',
-        invoiceNumber: '1023494 - 2304',
-        date: '8TH DECEMBER, 2022',
-        dueDate: 'May 19th, 2023',
-        amount: '$1,311,750.12',
-        status: 'draft'
-      },
-      {
-        id: '4',
-        invoiceNumber: '1023494 - 2304',
-        date: '8TH DECEMBER, 2022',
-        dueDate: 'May 19th, 2023',
-        amount: '$1,311,750.12',
-        status: 'pending payment'
-      }
-    ],
-    '8TH DECEMBER, 2023': [
-      {
-        id: '3',
-        invoiceNumber: '1023494 - 2304',
-        date: '8TH DECEMBER, 2022',
-        dueDate: 'May 19th, 2023',
-        amount: '$1,311,750.12',
-        status: 'paid'
-      },
-      {
-        id: '4',
-        invoiceNumber: '1023494 - 2304',
-        date: '8TH DECEMBER, 2022',
-        dueDate: 'May 19th, 2023',
-        amount: '$1,311,750.12',
-        status: 'pending payment'
-      }
-    ]
-  };
+    };
+
+    fetchInvoices();
+  }, [token]);
 
   const getStatusColor = (status: InvoiceStatus): string => {
     switch (status) {
@@ -85,18 +62,31 @@ const RecentInvoices: React.FC = () => {
     }
   };
 
-  const getStatusText = (status: InvoiceStatus): string => {
-    switch (status) {
-      case 'paid':
-        return 'PAID';
-      case 'overdue':
-        return 'OVERDUE';
-      case 'draft':
-        return 'DRAFT';
-      case 'pending payment':
-        return 'PENDING PAYMENT';
-    }
+  const handleDownloadPDF = (invoice: Invoice) => {
+      if (invoice.formData) {
+          generateInvoicePDF(invoice.formData);
+      } else {
+          // Fallback if full data isn't available - generate a basic one
+          toast.info('Generating basic PDF as full data is unavailable.');
+          // You could implement a basic generator or just alert
+      }
   };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6 flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Group invoices by date
+  const invoicesByDate = invoices.reduce((acc, invoice) => {
+    const date = invoice.date.toUpperCase();
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(invoice);
+    return acc;
+  }, {} as Record<string, Invoice[]>);
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
@@ -111,66 +101,90 @@ const RecentInvoices: React.FC = () => {
       </div>
 
       <div className="space-y-8">
-        {Object.entries(invoicesByDate).map(([date, invoices]) => (
-          <div key={date} className="space-y-4">
+        {Object.keys(invoicesByDate).length === 0 ? (
+          <p className="text-center text-gray-500 py-10">No invoices found.</p>
+        ) : (
+          Object.entries(invoicesByDate).map(([date, group]) => (
+            <div key={date} className="space-y-4">
+              <div className="border-b border-gray-200 pb-2">
+                <p className="text-md font-bold text-gray-700">{date}</p>
+              </div>
 
-            <div className="border-b border-gray-200 pb-2">
-              <p className="text-md font-bold text-gray-700">{date}</p>
-            </div>
-
-            <div className="space-y-4">
-              {invoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="md:hidden space-y-3">
-
-                    <div>
-                      <h3 className="font-bold text-gray-900 mb-1">
-                        Invoice - {invoice.invoiceNumber}
-                      </h3>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <p className="text-sm text-gray-500 mb-1">DUE DATE</p>
-                      <p className="font-medium text-gray-900">{invoice.dueDate}</p>
-                    </div>
-                    <div className="flex flex-col items-center space-y-2">
-                      <div className="text-xl font-bold text-gray-900">
-                        {invoice.amount}
+              <div className="space-y-4">
+                {group.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="hidden md:grid md:grid-cols-4 items-center gap-4">
+                      {/* Left column: Invoice Number */}
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-gray-900">
+                            Invoice - {invoice.invoiceNumber}
+                          </h3>
+                        </div>
+                        <p className="text-sm text-gray-500">{invoice.clientName}</p>
                       </div>
-                      <span className={`px-4 py-2 text-sm font-medium rounded-full ${getStatusColor(invoice.status)}`}>
-                        {getStatusText(invoice.status)}
-                      </span>
+                      
+                      <div className="flex flex-col items-center justify-center">
+                        <p className="text-sm text-gray-500 mb-1">DUE DATE</p>
+                        <p className="font-medium text-gray-900">{invoice.dueDate || 'N/A'}</p>
+                      </div>
+
+                      <div className="flex flex-col items-end">
+                        <div className="text-xl font-bold text-gray-900 mb-1">
+                          ${parseFloat(invoice.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </div>
+                        <span className={`px-4 py-1 text-xs font-medium rounded-full ${getStatusColor(invoice.status)}`}>
+                          {invoice.status.toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <button 
+                          onClick={() => handleDownloadPDF(invoice)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Download PDF"
+                        >
+                          <Download />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Mobile View */}
+                    <div className="md:hidden space-y-3">
+                        <div className="flex justify-between items-start">
+                            <h3 className="font-bold text-gray-900">
+                                INV - {invoice.invoiceNumber}
+                            </h3>
+                            <button 
+                              onClick={() => handleDownloadPDF(invoice)}
+                              className="text-blue-600"
+                            >
+                                <Download fontSize="small" />
+                            </button>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-500">Client:</span>
+                            <span className="font-medium">{invoice.clientName}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-500">Amount:</span>
+                            <span className="font-bold">${parseFloat(invoice.amount).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(invoice.status)}`}>
+                                {invoice.status.toUpperCase()}
+                            </span>
+                        </div>
                     </div>
                   </div>
-                  <div className="hidden md:grid md:grid-cols-3 items-center gap-4">
-                    {/* Left column: Invoice Number */}
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold text-gray-900">
-                          Invoice - {invoice.invoiceNumber}
-                        </h3>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-center justify-center">
-                      <p className="text-sm text-gray-500 mb-1">DUE DATE</p>
-                      <p className="font-medium text-gray-900">{invoice.dueDate}</p>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <div className="text-xl font-bold text-gray-900 mb-3">
-                        {invoice.amount}
-                      </div>
-                      <span className={`px-4 py-2 text-sm font-medium rounded-full ${getStatusColor(invoice.status)}`}>
-                        {getStatusText(invoice.status)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ interface SidebarProps {
 }
 
 interface MenuItem {
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<import('@mui/material').SvgIconProps>;
   label: string;
   path: string;
   count?: number;
@@ -35,8 +35,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const menuItems: MenuItem[] = [
     { icon: Home, label: 'Dashboard', path: '/dashboard', hasRoute: true },
     { icon: Description, label: 'Overview', path: '/overview', hasRoute: false },
-    { icon: AccountBalance, label: 'Accounts', path: '/accounts', count: 5, hasRoute: false },
-    { icon: People, label: 'Invoices', path: '/recent-invoices', count: 8, hasRoute: true },
+    { icon: AccountBalance, label: 'Accounts', path: '/accounts', hasRoute: false },
+    { icon: People, label: 'Invoices', path: '/recent-invoices', hasRoute: true },
     { icon: PieChart, label: 'Beneficiary Management', path: '/beneficiaries', hasRoute: false },
     { icon: HelpOutline, label: 'Help & Support', path: '/support', hasRoute: false },
     { icon: Settings, label: 'Settings', path: '/settings', hasRoute: true },

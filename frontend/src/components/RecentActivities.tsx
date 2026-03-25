@@ -1,133 +1,99 @@
-import React from 'react';
-import {
-  ArrowForward as ArrowForwardIcon,
-  Face as FaceIcon
-} from '@mui/icons-material';
+import React, { useEffect, useState } from 'react';
+import { useSocket } from '../context/SocketContext';
+import { CheckCircle, AttachMoney } from '@mui/icons-material';
 
 interface Activity {
-  id: number;
-  type: string;
+  id: string;
+  user: string;
   time: string;
-  invoiceNumber: string;
-  clientName: string;
-  avatarColor: string;
-  iconColor: string;
-  bubbleColor: string;
+  action: string;
+  status: 'completed' | 'payment';
 }
 
 const RecentActivities: React.FC = () => {
-  const activities: Activity[] = [
+  const [activities, setActivities] = useState<Activity[]>([
     {
-      id: 1,
-      type: 'Payment Pending',
-      time: 'Yesterday, 12:05 PM',
-      invoiceNumber: '00239434',
-      clientName: 'Olaniyi Ojo Adewale',
-      avatarColor: 'bg-yellow-100',
-      iconColor: 'text-yellow-600',
-      bubbleColor: 'bg-yellow-400'
-    },
-    {
-      id: 2,
-      type: 'Invoice creation',
-      time: 'Yesterday, 12:05 PM',
-      invoiceNumber: '00239434',
-      clientName: 'Olaniyi Ojo Adewale',
-      avatarColor: 'bg-red-100',
-      iconColor: 'text-red-600',
-      bubbleColor: 'bg-red-400'
-    },
-    {
-      id: 3,
-      type: 'Invoice creation',
-      time: 'Yesterday, 11:30 AM',
-      invoiceNumber: '00239435',
-      clientName: 'Chinwe Okonkwo',
-      avatarColor: 'bg-red-100',
-      iconColor: 'text-red-600',
-      bubbleColor: 'bg-red-400'
-    },
-    {
-      id: 4,
-      type: 'Payment received',
-      time: 'Yesterday, 10:15 AM',
-      invoiceNumber: '00239433',
-      clientName: 'Mohammed Ali',
-      avatarColor: 'bg-blue-100',
-      iconColor: 'text-blue-600',
-      bubbleColor: 'bg-blue-400'
-    },
-    {
-      id: 5,
-      type: 'Invoice creation',
-      time: '2 days ago, 03:45 PM',
-      invoiceNumber: '00239432',
-      clientName: 'Sarah Johnson',
-      avatarColor: 'bg-red-100',
-      iconColor: 'text-red-600',
-      bubbleColor: 'bg-red-400'
+      id: '1',
+      user: 'System',
+      time: 'Initial',
+      action: 'Welcome to YouVerify Invoice!',
+      status: 'completed'
     }
-  ];
+  ]);
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleInvoiceCreated = (data: { invoice: { clientName?: string } }) => {
+      const newActivity: Activity = {
+        id: Date.now().toString(),
+        user: 'You',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        action: `Created Invoice for ${data.invoice.clientName || 'Unknown'}`,
+        status: 'completed'
+      };
+      setActivities(prev => [newActivity, ...prev.slice(0, 4)]);
+    };
+
+    socket.on('invoice:created', handleInvoiceCreated);
+
+    return () => {
+      socket.off('invoice:created', handleInvoiceCreated);
+    };
+  }, [socket]);
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">
-          Recent Activities
-        </h2>
-        <button
-          onClick={() => { }}
-          className="bg-white hover:bg-blue-300 border border-blue-400 text-black px-4 py-2 
-              rounded-full font-medium flex items-center gap-2 transition-colors text-sm"
-        >
-          VIEW ALL
-        </button>
+        <h3 className="font-semibold text-gray-800 text-xl">Recent Activity</h3>
       </div>
+      
+      <div className="relative">
+        {/* Vertical timeline line */}
+        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-100"></div>
 
-      <div className="space-y-6">
-        {activities.map((activity) => (
-          <div
-            key={activity.id}
-            className="pb-6 border-b border-gray-100 last:border-b-0 last:pb-0"
-          >
-            {/* Top row: Type and Time */}
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-3">
-
-                <div className={`${activity.avatarColor} p-2 rounded-full flex items-center justify-center mt-1`}>
-                  <FaceIcon
-                    className={activity.iconColor}
-                    style={{ width: 20, height: 20 }}
-                  />
+        <div className="space-y-6">
+          {activities.map((activity) => (
+            <div key={activity.id} className="relative flex items-start space-x-3">
+              <div className="flex-shrink-0 relative z-10">
+                <div className={`
+                  w-8 h-8 rounded-full flex items-center justify-center border-2
+                  ${activity.status === 'payment'
+                    ? 'bg-green-100 border-green-500'
+                    : 'bg-blue-100 border-blue-500'
+                  }
+                `}>
+                  {activity.status === 'payment' ? (
+                    <AttachMoney className="text-green-600 w-4 h-4" />
+                  ) : (
+                    <CheckCircle className="text-blue-600 w-4 h-4" />
+                  )}
                 </div>
-                <h4 className="font-medium text-gray-900">
-                  {activity.type}
-                </h4>
               </div>
-              <span className="text-sm text-gray-500">
-                {activity.time}
-              </span>
-            </div>
 
-            {/* Bottom row: Avatar and Chat  */}
-            <div className="flex items-start gap-3">
-
-              <div className={`${activity.bubbleColor} rounded-2xl rounded-tl-none px-4 py-3 max-w-xs`}>
-                <p className="text-gray-800">
-                  Created invoice <strong>{activity.invoiceNumber}/{activity.clientName}</strong>
-                </p>
+              <div className="flex-1">
+                <div className={`
+                  p-3 rounded-lg border
+                  ${activity.status === 'payment'
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-gray-50 border-gray-200'
+                  }
+                `}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-sm text-gray-800">{activity.user}</span>
+                      </div>
+                      <p className="text-gray-700 text-sm mt-1 leading-tight">{activity.action}</p>
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">{activity.time}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* VIEW ALL link at the bottom */}
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <button className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm mx-auto">
-          VIEW ALL
-          <ArrowForwardIcon style={{ width: 16, height: 16 }} />
-        </button>
+          ))}
+        </div>
       </div>
     </div>
   );

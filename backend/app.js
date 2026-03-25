@@ -4,7 +4,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 const authRoutes = require("./routes/auth");
-const eventsRoutes = require("./routes/events");
+const invoicesRoutes = require("./routes/invoices");
 
 const app = express();
 const server = http.createServer(app);
@@ -51,7 +51,7 @@ app.get("/", (req, res) => {
 
 // Routes
 app.use("/auth", authRoutes);
-app.use("/events", eventsRoutes);
+app.use("/invoices", invoicesRoutes);
 
 // Error handling middleware
 app.use((error, req, res, next) => {
