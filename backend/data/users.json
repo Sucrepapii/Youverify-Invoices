@@ -1,1 +1,37 @@
-[]
+[
+  {
+    "id": "44c1e8f5-a693-457a-b791-75504aa23659",
+    "email": "test@example.com",
+    "password": "$2a$12$iw.WqSac2aFzYp/NNl9ieeHCC9JuG0P10QrWmEDb/pc4uZhCN7jo2"
+  },
+  {
+    "id": "admin-account-id",
+    "email": "admin@invoice.com",
+    "password": "$2a$12$cKvq8j1G8G/ge5Ztz0.gDdOv8OiSLuQm.zBj4BoW00"
+  },
+  {
+    "id": "7c8c3e0f-7b12-4804-848f-ceaccd1c7fd3",
+    "email": "akinboroo@gmail.com",
+    "password": "$2a$12$ELMp4ISP3t6wEfld0j1lluQ9MounD9.wXsURJgo57lPVMBJP04RLq"
+  },
+  {
+    "id": "d657add7-28a8-4bc8-8fa9-4ebfd08fd4ff",
+    "email": "super_premium_999@example.com",
+    "password": "$2a$12$2E3DjII74fn1fbGXJsHL.OxubpR7cK4XtMF1MQt.XoL2iKqh40WTi"
+  },
+  {
+    "id": "c0343606-78b1-44ce-9e9a-0847a6e0ce95",
+    "email": "newadmin@invoice.com",
+    "password": "$2a$12$4QVweykeSuoq/7ZZYifRUeIsopoym.ASI2devE1DpwoBxEyAoBxJ."
+  },
+  {
+    "id": "3f36c97d-2282-4625-a80d-31404d033814",
+    "email": "testuser@youverify.com",
+    "password": "$2a$12$kRlxaXBz/3NHpNKPS5d4Xea3IPL8DBRNyVLTBmOdnL.VciNQF4GBW"
+  },
+  {
+    "id": "283a7b18-54ae-4006-a624-b5a087a7e420",
+    "email": "testadmin@youverify.com",
+    "password": "$2a$12$Wbg9/tAGoqH4PHrnBMQJ9OP/QiQenEgULaiULJmdfHicSKU7GU5Hm"
+  }
+]

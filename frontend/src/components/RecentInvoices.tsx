@@ -1,183 +1,144 @@
-import React, { useEffect, useState } from 'react';
-import { API_ENDPOINTS } from '../config/api';
-import { useAuth } from '../context/AuthContext';
-import { generateInvoicePDF, InvoiceData } from '../util/PDFGenerator';
-import { toast } from 'react-toastify';
-import { Download } from '@mui/icons-material';
-
-type InvoiceStatus = 'paid' | 'overdue' | 'draft' | 'pending payment';
+import React, { useState } from 'react';
+import {
+  ReceiptLong,
+  Search,
+  FilterList
+} from '@mui/icons-material';
+import { useTheme } from '../context/ThemeContext';
 
 interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  date: string;
-  dueDate: string;
-  amount: string;
-  status: InvoiceStatus;
+  _id: string;
+  invoiceId: string;
   clientName: string;
-  title: string;
-  // This might contain the full InvoiceData if we store it
-  formData?: InvoiceData;
+  amount: number;
+  currency: string;
+  status: string;
+  dueDate: string;
+  createdAt: string;
 }
 
-const RecentInvoices: React.FC = () => {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { token } = useAuth();
+interface RecentInvoicesProps {
+  invoices?: Invoice[];
+}
 
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        const response = await fetch(API_ENDPOINTS.INVOICES, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (!response.ok) throw new Error('Failed to fetch invoices');
-        const data = await response.json();
-        setInvoices(data.invoices);
-      } catch (error) {
-        console.error('Error fetching invoices:', error);
-        toast.error('Failed to load invoices');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+const RecentInvoices: React.FC<RecentInvoicesProps> = ({ invoices = [] }) => {
+  const { theme } = useTheme();
+  const [searchTerm, setSearchTerm] = useState('');
 
-    fetchInvoices();
-  }, [token]);
+  const filteredInvoices = invoices.filter(invoice => 
+    invoice.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    invoice.invoiceId?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const getStatusColor = (status: InvoiceStatus): string => {
-    switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-800 border border-green-300';
-      case 'overdue':
-        return 'bg-red-100 text-red-800 border border-red-300';
-      case 'draft':
-        return 'bg-gray-100 text-gray-800 border border-gray-300';
-      case 'pending payment':
-        return 'bg-yellow-100 text-yellow-800 border border-yellow-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border border-gray-300';
-    }
-  };
-
-  const handleDownloadPDF = (invoice: Invoice) => {
-      if (invoice.formData) {
-          generateInvoicePDF(invoice.formData);
-      } else {
-          // Fallback if full data isn't available - generate a basic one
-          toast.info('Generating basic PDF as full data is unavailable.');
-          // You could implement a basic generator or just alert
-      }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg p-6 flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  // Group invoices by date
-  const invoicesByDate = invoices.reduce((acc, invoice) => {
-    const date = invoice.date.toUpperCase();
+  const invoicesByDate = filteredInvoices.reduce((acc, invoice) => {
+    const date = new Date(invoice.createdAt).toLocaleDateString();
     if (!acc[date]) acc[date] = [];
     acc[date].push(invoice);
     return acc;
   }, {} as Record<string, Invoice[]>);
 
+  const getStatusStyle = (status: string) => {
+    const s = status.toLowerCase();
+    if (s === 'paid') return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+    if (s === 'overdue') return 'bg-rose-500/10 text-rose-500 border-rose-500/20';
+    if (s === 'pending payment' || s === 'unpaid') return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+    return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">Recent Invoices</h2>
-        <button
-          className="bg-white hover:bg-blue-300 border border-blue-400 text-black px-10 py-5 
-                       rounded-full font-medium flex items-center gap-2 transition-colors"
-        >
-          VIEW ALL
-        </button>
+    <div className={`
+      rounded-[2rem] p-8 transition-all duration-300 border
+      ${theme === 'dark' ? 'bg-gray-900/40 border-gray-800' : 'bg-white border-gray-100 shadow-sm'}
+    `}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        <div className="flex items-center gap-3">
+           <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}>
+              <ReceiptLong sx={{ fontSize: 20 }} />
+           </div>
+           <h2 className={`text-2xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Invoice History</h2>
+        </div>
+        
+        <div className="flex flex-1 max-w-md items-center gap-3">
+            <div className="relative flex-1">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" sx={{ fontSize: 18 }} />
+               <input 
+                 type="text" 
+                 placeholder="Search client or ID..."
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 className={`
+                   w-full pl-10 pr-4 py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all
+                   ${theme === 'dark' 
+                     ? 'bg-gray-800/40 border-gray-700 text-white placeholder-gray-500 focus:bg-gray-800' 
+                     : 'bg-gray-50/50 border-gray-100 text-gray-900 placeholder-gray-400 focus:bg-white focus:shadow-sm'
+                   }
+                   outline-none focus:border-blue-500/50
+                 `}
+               />
+            </div>
+            <button className={`p-2.5 rounded-xl border transition-all ${theme === 'dark' ? 'bg-gray-800/40 border-gray-700 text-gray-400 hover:text-white' : 'bg-gray-50/50 border-gray-100 text-gray-500 hover:text-gray-900'}`}>
+               <FilterList sx={{ fontSize: 18 }} />
+            </button>
+        </div>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-12">
         {Object.keys(invoicesByDate).length === 0 ? (
-          <p className="text-center text-gray-500 py-10">No invoices found.</p>
+          <div className="text-center py-20">
+            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+               <ReceiptLong className="text-gray-400" />
+            </div>
+            <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No transaction records found</p>
+          </div>
         ) : (
-          Object.entries(invoicesByDate).map(([date, group]) => (
-            <div key={date} className="space-y-4">
-              <div className="border-b border-gray-200 pb-2">
-                <p className="text-md font-bold text-gray-700">{date}</p>
+          Object.entries(invoicesByDate).map(([date, dateInvoices]) => (
+            <div key={date}>
+              <div className="flex items-center gap-4 mb-6">
+                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">{date}</h4>
+                 <div className={`h-[1px] w-full ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}></div>
               </div>
-
-              <div className="space-y-4">
-                {group.map((invoice) => (
-                  <div
-                    key={invoice.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+              <div className="space-y-3">
+                {dateInvoices.map((invoice) => (
+                  <div 
+                    key={invoice._id}
+                    className={`
+                      group flex flex-col md:flex-row md:items-center justify-between p-5 rounded-2xl border transition-all duration-300 cursor-pointer
+                      ${theme === 'dark' 
+                        ? 'bg-gray-800/10 border-gray-800/50 hover:bg-gray-800/30' 
+                        : 'bg-white border-gray-100 hover:shadow-xl hover:shadow-gray-100 hover:border-transparent'
+                      }
+                    `}
                   >
-                    <div className="hidden md:grid md:grid-cols-4 items-center gap-4">
-                      {/* Left column: Invoice Number */}
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-gray-900">
-                            Invoice - {invoice.invoiceNumber}
-                          </h3>
+                    <div className="flex items-center gap-5 mb-4 md:mb-0">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm ${theme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
+                        {invoice.clientName?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <h5 className={`font-black text-sm mb-0.5 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          {invoice.clientName}
+                        </h5>
+                        <div className="flex items-center gap-2">
+                           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ID: {invoice.invoiceId}</p>
+                           <span className="text-gray-300">•</span>
+                           <p className="text-[10px] font-bold text-gray-400">{new Date(invoice.dueDate).toLocaleDateString()}</p>
                         </div>
-                        <p className="text-sm text-gray-500">{invoice.clientName}</p>
-                      </div>
-                      
-                      <div className="flex flex-col items-center justify-center">
-                        <p className="text-sm text-gray-500 mb-1">DUE DATE</p>
-                        <p className="font-medium text-gray-900">{invoice.dueDate || 'N/A'}</p>
-                      </div>
-
-                      <div className="flex flex-col items-end">
-                        <div className="text-xl font-bold text-gray-900 mb-1">
-                          ${parseFloat(invoice.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </div>
-                        <span className={`px-4 py-1 text-xs font-medium rounded-full ${getStatusColor(invoice.status)}`}>
-                          {invoice.status.toUpperCase()}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-end">
-                        <button 
-                          onClick={() => handleDownloadPDF(invoice)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Download PDF"
-                        >
-                          <Download />
-                        </button>
                       </div>
                     </div>
-
-                    {/* Mobile View */}
-                    <div className="md:hidden space-y-3">
-                        <div className="flex justify-between items-start">
-                            <h3 className="font-bold text-gray-900">
-                                INV - {invoice.invoiceNumber}
-                            </h3>
-                            <button 
-                              onClick={() => handleDownloadPDF(invoice)}
-                              className="text-blue-600"
-                            >
-                                <Download fontSize="small" />
-                            </button>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500">Client:</span>
-                            <span className="font-medium">{invoice.clientName}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500">Amount:</span>
-                            <span className="font-bold">${parseFloat(invoice.amount).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(invoice.status)}`}>
-                                {invoice.status.toUpperCase()}
-                            </span>
-                        </div>
+                    
+                    <div className="flex items-center justify-between md:justify-end gap-10">
+                      <div className="text-right">
+                         <p className={`text-base font-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            ${Number(invoice.amount).toLocaleString()}
+                         </p>
+                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{invoice.currency}</p>
+                      </div>
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${getStatusStyle(invoice.status)}`}>
+                         <div className={`w-1.5 h-1.5 rounded-full ${
+                            invoice.status.toLowerCase() === 'paid' ? 'bg-emerald-500' : 
+                            invoice.status.toLowerCase() === 'overdue' ? 'bg-rose-500' : 'bg-amber-500'
+                         }`} />
+                         {invoice.status}
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -4,18 +4,56 @@ import {
   Warning as WarningIcon,
   Edit as EditIcon,
   AttachMoney as AttachMoneyIcon,
-  Settings as SettingsIcon,
-  People as PeopleIcon
+  TrendingUp,
+  Bolt,
+  AccountBalance
 } from '@mui/icons-material';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  LineChart,
+  Line
+} from 'recharts';
 import InvoiceForm from './InvoiceForm';
 import { API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+
+// Mock data for sparklines and main chart
+const sparklineData = [
+  { value: 400 }, { value: 300 }, { value: 600 }, { value: 800 }, { value: 500 }, { value: 900 }, { value: 1100 }
+];
+
+const cashFlowData = [
+  { name: 'Mon', revenue: 4000, outstanding: 2400 },
+  { name: 'Tue', revenue: 3000, outstanding: 1398 },
+  { name: 'Wed', revenue: 2000, outstanding: 9800 },
+  { name: 'Thu', revenue: 2780, outstanding: 3908 },
+  { name: 'Fri', revenue: 1890, outstanding: 4800 },
+  { name: 'Sat', revenue: 2390, outstanding: 3800 },
+  { name: 'Sun', revenue: 3490, outstanding: 4300 },
+];
+
+const MiniSparkline = ({ color }: { color: string }) => (
+  <div className="h-8 w-16">
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={sparklineData}>
+        <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+);
 
 const InvoiceOverview: React.FC = () => {
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const { theme } = useTheme();
   const [stats, setStats] = useState({
-    paidCount: 0,
-    paidAmount: 0,
+    totalPaidCount: 0,
+    totalPaidAmount: 0,
     overdueCount: 0,
     overdueAmount: 0,
     draftCount: 0,
@@ -23,153 +61,164 @@ const InvoiceOverview: React.FC = () => {
     unpaidCount: 0,
     unpaidAmount: 0
   });
+
   const { token } = useAuth();
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const response = await fetch(API_ENDPOINTS.INVOICES, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        const invoices = data.invoices || [];
-
-        const newStats = invoices.reduce((acc: typeof stats, inv: { status: string; amount: string }) => {
-          const amt = parseFloat(inv.amount) || 0;
-          if (inv.status === 'paid') {
-            acc.paidCount++;
-            acc.paidAmount += amt;
-          } else if (inv.status === 'overdue') {
-            acc.overdueCount++;
-            acc.overdueAmount += amt;
-          } else if (inv.status === 'draft') {
-            acc.draftCount++;
-            acc.draftAmount += amt;
-          } else {
-            acc.unpaidCount++;
-            acc.unpaidAmount += amt;
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
-          return acc;
-        }, {
-          paidCount: 0, paidAmount: 0,
-          overdueCount: 0, overdueAmount: 0,
-          draftCount: 0, draftAmount: 0,
-          unpaidCount: 0, unpaidAmount: 0
         });
-
-        setStats(newStats);
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            const paid = data.filter((inv: { status: string }) => inv.status === 'paid');
+            const overdue = data.filter((inv: { status: string }) => inv.status === 'overdue');
+            const draft = data.filter((inv: { status: string }) => inv.status === 'draft');
+            const unpaid = data.filter((inv: { status: string }) => inv.status === 'pending payment' || inv.status === 'unpaid');
+  
+            setStats({
+              totalPaidCount: paid.length,
+              totalPaidAmount: paid.reduce((sum: number, inv: { amount: number }) => sum + Number(inv.amount), 0),
+              overdueCount: overdue.length,
+              overdueAmount: overdue.reduce((sum: number, inv: { amount: number }) => sum + Number(inv.amount), 0),
+              draftCount: draft.length,
+              draftAmount: draft.reduce((sum: number, inv: { amount: number }) => sum + Number(inv.amount), 0),
+              unpaidCount: unpaid.length,
+              unpaidAmount: unpaid.reduce((sum: number, inv: { amount: number }) => sum + Number(inv.amount), 0)
+            });
+          }
+        }
       } catch (error) {
-        console.error('Error fetching stats:', error);
+        console.error('Failed to fetch stats:', error);
       }
     };
 
-    fetchStats();
-  }, [token, showInvoiceForm]); // Refresh when form closes (might have added new invoice)
+    if (token) fetchStats();
+  }, [token]);
+
+  const StatCard = ({ title, amount, count, icon: Icon, color, trend }: { title: string, amount: number, count: number, icon: any, color: string, trend?: number }) => (
+    <div className={`p-5 rounded-3xl border transition-all duration-300 ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800/50 hover:bg-gray-800/30' : 'bg-white border-gray-100 hover:shadow-xl hover:shadow-gray-100'}`}>
+      <div className="flex items-start justify-between mb-4">
+        <div className={`p-2.5 rounded-xl ${color === 'emerald' ? 'bg-emerald-500/10 text-emerald-500' : color === 'rose' ? 'bg-rose-500/10 text-rose-500' : color === 'amber' ? 'bg-amber-500/10 text-amber-500' : 'bg-violet-500/10 text-violet-500'}`}>
+          <Icon sx={{ fontSize: 20 }} />
+        </div>
+        <MiniSparkline color={color === 'emerald' ? '#10b981' : color === 'rose' ? '#f43f5e' : color === 'amber' ? '#f59e0b' : '#8b5cf6'} />
+      </div>
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">{title}</p>
+          {trend && (
+            <span className={`text-[9px] font-black ${trend > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {trend > 0 ? '+' : ''}{trend}%
+            </span>
+          )}
+        </div>
+        <h3 className={`text-xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+          ${amount.toLocaleString()}
+        </h3>
+        <p className="text-[10px] font-bold text-gray-400 capitalize">{count} Transactions</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 md:mb-8">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Invoice Dashboard</h1>
-          <p className="text-gray-600 text-sm md:text-base">Real-time financial overview</p>
-        </div>
-
-        <button
-          onClick={() => setShowInvoiceForm(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 
-               rounded-full font-medium flex items-center justify-center gap-2 
-               transition-colors text-sm md:text-base w-full md:w-auto"
-        >
-          CREATE INVOICE
-        </button>
+    <div className="space-y-6">
+      {/* Bento Row 1: Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Total Revenue" amount={stats.totalPaidAmount} count={stats.totalPaidCount} icon={CheckCircleIcon} color="emerald" trend={12} />
+        <StatCard title="Outstanding" amount={stats.unpaidAmount} count={stats.unpaidCount} icon={AttachMoneyIcon} color="violet" trend={8} />
+        <StatCard title="Overdue" amount={stats.overdueAmount} count={stats.overdueCount} icon={WarningIcon} color="rose" trend={2} />
+        <StatCard title="Drafts" amount={stats.draftAmount} count={stats.draftCount} icon={EditIcon} color="amber" />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-        {/* Paid Stats */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 shadow-sm">
-          <div className="flex justify-between items-start mb-4">
+      {/* Bento Row 2: Charts & Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Cash Flow Analysis Card */}
+        <div className={`lg:col-span-8 p-8 rounded-[2.5rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800/50' : 'bg-white border-gray-100 shadow-sm'}`}>
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <p className="text-blue-600 font-bold text-xs uppercase">Paid</p>
-              <p className="text-blue-800 text-lg font-bold">{stats.paidCount}</p>
+              <h2 className={`text-xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Cash Flow Analysis</h2>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Revenue vs. Outstanding Over Time</p>
             </div>
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <CheckCircleIcon className="text-blue-600" />
+            <div className={`px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest ${theme === 'dark' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-blue-50 border-blue-100 text-blue-600'}`}>
+              Last 7 Days
             </div>
           </div>
-          <h3 className="text-xl font-bold text-gray-900">${stats.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+          
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={cashFlowData}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorOut" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#1f2937' : '#f1f5f9'} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} axisLine={false} tickLine={false} tick={{ fontWeight: 800 }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff',
+                    border: 'none',
+                    borderRadius: '16px',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                  }}
+                  itemStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                <Area type="monotone" dataKey="outstanding" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorOut)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* Overdue Stats */}
-        <div className="bg-red-50 border border-red-100 rounded-xl p-6 shadow-sm">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <p className="text-red-600 font-bold text-xs uppercase">Overdue</p>
-              <p className="text-red-800 text-lg font-bold">{stats.overdueCount}</p>
-            </div>
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <WarningIcon className="text-red-600" />
-            </div>
-          </div>
-          <h3 className="text-xl font-bold text-gray-900">${stats.overdueAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
-        </div>
+        {/* Premium Quick Actions */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
+           <button 
+             onClick={() => setShowInvoiceForm(true)}
+             className="flex-1 p-8 rounded-[2.5rem] bg-blue-600 hover:bg-blue-700 transition-all group overflow-hidden relative"
+           >
+              <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
+              <div className="relative z-10 text-left h-full flex flex-col justify-between">
+                 <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-6">
+                    <Bolt className="text-white" />
+                 </div>
+                 <div>
+                    <h3 className="text-2xl font-black text-white leading-tight mb-2">Create New<br />Invoice</h3>
+                    <p className="text-xs font-bold text-blue-100/70 uppercase tracking-widest">Instant Transaction Ledger</p>
+                 </div>
+              </div>
+           </button>
 
-        {/* Draft Stats */}
-        <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-6 shadow-sm">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <p className="text-yellow-600 font-bold text-xs uppercase">Draft</p>
-              <p className="text-yellow-800 text-lg font-bold">{stats.draftCount}</p>
-            </div>
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <EditIcon className="text-yellow-600" />
-            </div>
-          </div>
-          <h3 className="text-xl font-bold text-gray-900">${stats.draftAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
-        </div>
-
-        {/* Unpaid Stats */}
-        <div className="bg-purple-50 border border-purple-100 rounded-xl p-6 shadow-sm">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <p className="text-purple-600 font-bold text-xs uppercase">Unpaid</p>
-              <p className="text-purple-800 text-lg font-bold">{stats.unpaidCount}</p>
-            </div>
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <AttachMoneyIcon className="text-purple-600" />
-            </div>
-          </div>
-          <h3 className="text-xl font-bold text-gray-900">${stats.unpaidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+           <div className={`flex-1 p-8 rounded-[2.5rem] border ${theme === 'dark' ? 'bg-gray-800/10 border-gray-800/50' : 'bg-gray-50 border-gray-100'} flex flex-col justify-between`}>
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-500">
+                    <TrendingUp sx={{ fontSize: 20 }} />
+                 </div>
+                 <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Assets</p>
+                    <h4 className={`text-lg font-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>$124.5k</h4>
+                 </div>
+              </div>
+              <div className="flex items-center gap-2 mt-4">
+                 <div className={`p-1.5 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-white shadow-sm'}`}>
+                    <AccountBalance sx={{ fontSize: 14, text: '#94a3b8' }} />
+                 </div>
+                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Synchronized with 3 accounts</span>
+              </div>
+           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setShowInvoiceForm(true)}>
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <AttachMoneyIcon className="text-blue-600" />
-              </div>
-              <h4 className="font-bold text-gray-900">Create Invoice</h4>
-              <p className="text-sm text-gray-500">Generate professional invoices in seconds.</p>
-          </div>
-          <div className="p-6 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                  <SettingsIcon className="text-purple-600" />
-              </div>
-              <h4 className="font-bold text-gray-900">Settings</h4>
-              <p className="text-sm text-gray-500">Configure your branding and payments.</p>
-          </div>
-          <div className="p-6 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                  <PeopleIcon className="text-green-600" />
-              </div>
-              <h4 className="font-bold text-gray-900">Customers</h4>
-              <p className="text-sm text-gray-500">Manage your client relationships.</p>
-          </div>
-      </div>
-
-      {showInvoiceForm && (
-        <InvoiceForm onClose={() => setShowInvoiceForm(false)} />
-      )}
+      {showInvoiceForm && <InvoiceForm onClose={() => setShowInvoiceForm(false)} />}
     </div>
   );
 };

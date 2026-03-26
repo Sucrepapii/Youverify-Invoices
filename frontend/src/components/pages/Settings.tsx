@@ -6,9 +6,11 @@ import {
     Visibility,
     VisibilityOff,
     CheckCircle,
-    ErrorOutline
+    Shield,
+    ArrowBack
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../../context/ThemeContext';
 
 // Type definitions
 interface PasswordData {
@@ -40,7 +42,8 @@ interface LoadingStates {
 
 interface SettingsSectionProps {
     title: string;
-    icon: React.ComponentType<any>;
+    description: string;
+    icon: React.ComponentType<import('@mui/material').SvgIconProps>;
     children: React.ReactNode;
 }
 
@@ -51,7 +54,7 @@ interface FormInputProps {
     value: string;
     onChange: (e: ChangeEvent<HTMLInputElement>) => void;
     placeholder: string;
-    icon?: React.ComponentType<any>;
+    icon?: React.ComponentType<import('@mui/material').SvgIconProps>;
     showToggle?: boolean;
     showPassword?: boolean;
     onToggle?: () => void;
@@ -59,16 +62,26 @@ interface FormInputProps {
     disabled?: boolean;
 }
 
-// Component definitions moved outside to prevent re-creation on every render
-const SettingsSection: React.FC<SettingsSectionProps> = ({ title, icon: Icon, children }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
-            <Icon className="text-blue-600" fontSize="medium" />
-            <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
+const SettingsSection: React.FC<SettingsSectionProps> = ({ title, description, icon: Icon, children }) => {
+    const { theme } = useTheme();
+    return (
+        <div className={`
+            rounded-[2rem] border p-8 mb-8 transition-all duration-300
+            ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-white border-gray-100 shadow-sm'}
+        `}>
+            <div className="flex items-start gap-4 mb-8">
+                <div className={`p-3 rounded-2xl ${theme === 'dark' ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                    <Icon fontSize="medium" />
+                </div>
+                <div>
+                    <h2 className={`text-xl font-black mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{title}</h2>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{description}</p>
+                </div>
+            </div>
+            {children}
         </div>
-        {children}
-    </div>
-);
+    );
+};
 
 const FormInput: React.FC<FormInputProps> = ({
     label,
@@ -83,45 +96,56 @@ const FormInput: React.FC<FormInputProps> = ({
     onToggle,
     error,
     disabled = false
-}) => (
-    <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-            {label}
-        </label>
-        <div className="relative">
-            {Icon && (
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <Icon fontSize="small" />
-                </div>
-            )}
-            <input
-                type={showToggle && showPassword ? 'text' : type}
-                name={name}
-                value={value}
-                onChange={onChange}
-                placeholder={placeholder}
-                disabled={disabled}
-                className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 
-                 focus:border-blue-500 outline-none transition-colors
-                 ${error ? 'border-red-500' : 'border-gray-300'}
-                 ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}`}
-            />
-            {showToggle && onToggle && (
-                <button
-                    type="button"
-                    onClick={onToggle}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+}) => {
+    const { theme } = useTheme();
+    return (
+        <div className="mb-6">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-1">
+                {label}
+            </label>
+            <div className="relative group">
+                {Icon && (
+                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${theme === 'dark' ? 'text-gray-600 group-focus-within:text-blue-500' : 'text-gray-400 group-focus-within:text-blue-500'}`}>
+                        <Icon sx={{ fontSize: 18 }} />
+                    </div>
+                )}
+                <input
+                    type={showToggle && showPassword ? 'text' : type}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    placeholder={placeholder}
                     disabled={disabled}
-                >
-                    {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                </button>
-            )}
+                    className={`
+                        w-full pl-12 pr-12 py-3.5 rounded-2xl border text-sm font-semibold transition-all
+                        ${theme === 'dark' 
+                            ? 'bg-gray-800/40 border-gray-700 text-white placeholder-gray-600 focus:bg-gray-700/50' 
+                            : 'bg-gray-50/50 border-gray-100 text-gray-900 placeholder-gray-400 focus:bg-white focus:shadow-lg'
+                        }
+                        focus:border-blue-500 outline-none focus:ring-4 focus:ring-blue-500/10
+                        ${error ? 'border-red-500' : ''}
+                    `}
+                />
+                {showToggle && onToggle && (
+                    <button
+                        type="button"
+                        onClick={onToggle}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors"
+                        disabled={disabled}
+                    >
+                        {showPassword ? <VisibilityOff sx={{ fontSize: 18 }} /> : <Visibility sx={{ fontSize: 18 }} />}
+                    </button>
+                )}
+            </div>
+            {error && <p className="mt-2 ml-1 text-[10px] font-bold text-red-500 uppercase tracking-wider">{error}</p>}
         </div>
-        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-    </div>
-);
+    );
+};
 
 const SettingsPage: React.FC = () => {
+    const { theme } = useTheme();
+    const navigate = useNavigate();
+
     // Password state
     const [passwordData, setPasswordData] = useState<PasswordData>({
         currentPassword: '',
@@ -158,8 +182,6 @@ const SettingsPage: React.FC = () => {
         phone: false
     });
 
-    const navigate = useNavigate();
-
     const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setPasswordData(prev => ({ ...prev, [name]: value }));
@@ -185,85 +207,18 @@ const SettingsPage: React.FC = () => {
         }));
     };
 
-    const validatePassword = (): boolean => {
-        if (!passwordData.currentPassword.trim()) {
-            setPasswordError('Current password is required');
-            return false;
-        }
-        if (passwordData.newPassword.length < 8) {
-            setPasswordError('Password must be at least 8 characters');
-            return false;
-        }
-        if (passwordData.newPassword !== passwordData.confirmPassword) {
-            setPasswordError('New passwords do not match');
-            return false;
-        }
-        if (passwordData.currentPassword === passwordData.newPassword) {
-            setPasswordError('New password must be different from current password');
-            return false;
-        }
-        return true;
-    };
-
-    const validateEmail = (): boolean => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailData.newEmail.trim()) {
-            setEmailError('New email is required');
-            return false;
-        }
-        if (!emailRegex.test(emailData.newEmail)) {
-            setEmailError('Please enter a valid email address');
-            return false;
-        }
-        if (emailData.newEmail !== emailData.confirmEmail) {
-            setEmailError('Emails do not match');
-            return false;
-        }
-        return true;
-    };
-
-    const validatePhone = (): boolean => {
-        const cleanedPhone = phoneData.newPhone.replace(/\D/g, '');
-
-        if (!phoneData.newPhone.trim()) {
-            setPhoneError('New phone number is required');
-            return false;
-        }
-
-        // Nigerian phone validation (you can adjust this)
-        if (cleanedPhone.length < 10 || cleanedPhone.length > 15) {
-            setPhoneError('Please enter a valid phone number (10-15 digits)');
-            return false;
-        }
-
-        return true;
-    };
-
     const handleSubmitPassword = async (e: React.FormEvent) => {
         e.preventDefault();
         setPasswordError('');
         setPasswordSuccess('');
-
-        if (!validatePassword()) return;
-
         setLoading(prev => ({ ...prev, password: true }));
 
         try {
             await new Promise(resolve => setTimeout(resolve, 1500));
-
-            setPasswordSuccess('Password updated successfully!');
-            setPasswordData({
-                currentPassword: '',
-                newPassword: '',
-                confirmPassword: ''
-            });
-            setShowPasswords({
-                current: false,
-                new: false,
-                confirm: false
-            });
+            setPasswordSuccess('Password updated successfully');
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
         } catch (error) {
-            setPasswordError(error instanceof Error ? error.message : 'Failed to update password');
+            setPasswordError('Failed to update password');
         } finally {
             setLoading(prev => ({ ...prev, password: false }));
         }
@@ -273,21 +228,14 @@ const SettingsPage: React.FC = () => {
         e.preventDefault();
         setEmailError('');
         setEmailSuccess('');
-
-        if (!validateEmail()) return;
-
         setLoading(prev => ({ ...prev, email: true }));
 
         try {
             await new Promise(resolve => setTimeout(resolve, 1500));
-
-            setEmailSuccess('Email updated successfully! Verification email sent.');
-            setEmailData({
-                newEmail: '',
-                confirmEmail: ''
-            });
+            setEmailSuccess('Email updated successfully');
+            setEmailData({ newEmail: '', confirmEmail: '' });
         } catch (error) {
-            setEmailError(error instanceof Error ? error.message : 'Failed to update email');
+            setEmailError('Failed to update email');
         } finally {
             setLoading(prev => ({ ...prev, email: false }));
         }
@@ -297,229 +245,219 @@ const SettingsPage: React.FC = () => {
         e.preventDefault();
         setPhoneError('');
         setPhoneSuccess('');
-
-        if (!validatePhone()) return;
-
         setLoading(prev => ({ ...prev, phone: true }));
 
         try {
             await new Promise(resolve => setTimeout(resolve, 1500));
-
-            setPhoneSuccess('Phone number updated successfully! Verification code sent.');
-            setPhoneData({
-                newPhone: ''
-            });
+            setPhoneSuccess('Phone number updated successfully');
+            setPhoneData({ newPhone: '' });
         } catch (error) {
-            setPhoneError(error instanceof Error ? error.message : 'Failed to update phone number');
+            setPhoneError('Failed to update phone number');
         } finally {
             setLoading(prev => ({ ...prev, phone: false }));
         }
     };
 
-
-
     return (
-        <div className="p-6 max-w-4xl mx-auto">
-            <div className="mb-8 flex justify-between items-center">
+        <div className="p-6 max-w-4xl mx-auto space-y-10">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100 dark:border-gray-800">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
-                    <p className="text-gray-600">Manage your account security and contact information</p>
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-amber-500/10 text-amber-500' : 'bg-amber-50 text-amber-600'}`}>
+                            <Shield />
+                        </div>
+                        <h1 className={`text-3xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Account Security</h1>
+                    </div>
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest leading-relaxed">Update your login information and secure your account</p>
                 </div>
                 <button
-                    type="button"
-                    className="text-blue-600 hover:text-blue-800 font-medium"
                     onClick={() => navigate('/dashboard')}
+                    className={`
+                        flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                        ${theme === 'dark' ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}
+                    `}
                 >
-                    ← Back to Dashboard
+                    <ArrowBack sx={{ fontSize: 14 }} /> Back to Console
                 </button>
             </div>
 
-            {/* Change Password Section */}
-            <SettingsSection title="Change Password" icon={Lock}>
-                <form onSubmit={handleSubmitPassword}>
-                    <FormInput
-                        label="Current Password"
-                        type="password"
-                        name="currentPassword"
-                        value={passwordData.currentPassword}
-                        onChange={handlePasswordChange}
-                        placeholder="Enter current password"
-                        icon={Lock}
-                        showToggle
-                        showPassword={showPasswords.current}
-                        onToggle={() => togglePasswordVisibility('current')}
-                        error={passwordError}
-                        disabled={loading.password}
-                    />
-
-                    <FormInput
-                        label="New Password"
-                        type="password"
-                        name="newPassword"
-                        value={passwordData.newPassword}
-                        onChange={handlePasswordChange}
-                        placeholder="Enter new password (min. 8 characters)"
-                        icon={Lock}
-                        showToggle
-                        showPassword={showPasswords.new}
-                        onToggle={() => togglePasswordVisibility('new')}
-                        disabled={loading.password}
-                    />
-
-                    <FormInput
-                        label="Confirm New Password"
-                        type="password"
-                        name="confirmPassword"
-                        value={passwordData.confirmPassword}
-                        onChange={handlePasswordChange}
-                        placeholder="Confirm new password"
-                        icon={Lock}
-                        showToggle
-                        showPassword={showPasswords.confirm}
-                        onToggle={() => togglePasswordVisibility('confirm')}
-                        disabled={loading.password}
-                    />
-
-                    {passwordSuccess && (
-                        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-                            <CheckCircle className="text-green-600" fontSize="small" />
-                            <span className="text-green-700 text-sm">{passwordSuccess}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
+                {/* Change Password Section */}
+                <SettingsSection 
+                    title="Change Password" 
+                    description="Update your account password regularly to stay secure"
+                    icon={Lock}
+                >
+                    <form onSubmit={handleSubmitPassword} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                            <div className="md:col-span-2">
+                                <FormInput
+                                    label="Current Password"
+                                    type="password"
+                                    name="currentPassword"
+                                    value={passwordData.currentPassword}
+                                    onChange={handlePasswordChange}
+                                    placeholder="Enter current password"
+                                    icon={Lock}
+                                    showToggle
+                                    showPassword={showPasswords.current}
+                                    onToggle={() => togglePasswordVisibility('current')}
+                                    error={passwordError}
+                                    disabled={loading.password}
+                                />
+                            </div>
+                            <FormInput
+                                label="New Password"
+                                type="password"
+                                name="newPassword"
+                                value={passwordData.newPassword}
+                                onChange={handlePasswordChange}
+                                placeholder="Min. 8 characters"
+                                icon={Lock}
+                                showToggle
+                                showPassword={showPasswords.new}
+                                onToggle={() => togglePasswordVisibility('new')}
+                                disabled={loading.password}
+                            />
+                            <FormInput
+                                label="Confirm New Password"
+                                type="password"
+                                name="confirmPassword"
+                                value={passwordData.confirmPassword}
+                                onChange={handlePasswordChange}
+                                placeholder="Re-enter new password"
+                                icon={Lock}
+                                showToggle
+                                showPassword={showPasswords.confirm}
+                                onToggle={() => togglePasswordVisibility('confirm')}
+                                disabled={loading.password}
+                            />
                         </div>
-                    )}
 
-                    <div className="flex justify-end">
-                        <button
-                            type="submit"
-                            disabled={loading.password}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 
-                       rounded-lg font-medium flex items-center gap-2 transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed min-w-[150px]"
-                        >
-                            {loading.password ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    Updating...
-                                </>
-                            ) : (
-                                <>
-                                    <Lock fontSize="small" />
-                                    Update Password
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </SettingsSection>
+                        {passwordSuccess && (
+                            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3">
+                                <CheckCircle className="text-emerald-500" sx={{ fontSize: 18 }} />
+                                <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">{passwordSuccess}</span>
+                            </div>
+                        )}
 
-            {/* Change Email Section */}
-            <SettingsSection title="Change Email Address" icon={Email}>
-                <form onSubmit={handleSubmitEmail}>
-                    <FormInput
-                        label="New Email Address"
-                        type="email"
-                        name="newEmail"
-                        value={emailData.newEmail}
-                        onChange={handleEmailChange}
-                        placeholder="Enter new email address"
-                        icon={Email}
-                        error={emailError}
-                        disabled={loading.email}
-                    />
-
-                    <FormInput
-                        label="Confirm New Email"
-                        type="email"
-                        name="confirmEmail"
-                        value={emailData.confirmEmail}
-                        onChange={handleEmailChange}
-                        placeholder="Confirm new email address"
-                        icon={Email}
-                        disabled={loading.email}
-                    />
-
-                    {emailSuccess && (
-                        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-                            <CheckCircle className="text-green-600" fontSize="small" />
-                            <span className="text-green-700 text-sm">{emailSuccess}</span>
+                        <div className="flex justify-end pt-4">
+                            <button
+                                type="submit"
+                                disabled={loading.password}
+                                className={`
+                                    px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-3
+                                    ${theme === 'dark' ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/10'}
+                                    disabled:opacity-50 disabled:grayscale
+                                `}
+                            >
+                                {loading.password ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Lock sx={{ fontSize: 16 }} />}
+                                {loading.password ? 'Updating...' : 'Update Password'}
+                            </button>
                         </div>
-                    )}
+                    </form>
+                </SettingsSection>
 
-                    {emailError && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-                            <ErrorOutline className="text-red-600" fontSize="small" />
-                            <span className="text-red-700 text-sm">{emailError}</span>
+                {/* Change Email Section */}
+                <SettingsSection 
+                    title="Change Email Address" 
+                    description="Update the email address associated with your account"
+                    icon={Email}
+                >
+                    <form onSubmit={handleSubmitEmail} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                            <FormInput
+                                label="New Email Address"
+                                type="email"
+                                name="newEmail"
+                                value={emailData.newEmail}
+                                onChange={handleEmailChange}
+                                placeholder="identity@domain.com"
+                                icon={Email}
+                                error={emailError}
+                                disabled={loading.email}
+                            />
+                            <FormInput
+                                label="Confirm Email"
+                                type="email"
+                                name="confirmEmail"
+                                value={emailData.confirmEmail}
+                                onChange={handleEmailChange}
+                                placeholder="identity@domain.com"
+                                icon={Email}
+                                disabled={loading.email}
+                            />
                         </div>
-                    )}
 
-                    <div className="flex justify-end">
-                        <button
-                            type="submit"
-                            disabled={loading.email}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 
-                       rounded-lg font-medium flex items-center gap-2 transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed min-w-[150px]"
-                        >
-                            {loading.email ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    Updating...
-                                </>
-                            ) : (
-                                <>
-                                    <Email fontSize="small" />
-                                    Update Email
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </SettingsSection>
+                        {emailSuccess && (
+                            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3">
+                                <CheckCircle className="text-emerald-500" sx={{ fontSize: 18 }} />
+                                <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">{emailSuccess}</span>
+                            </div>
+                        )}
 
-            {/* Change Phone Number Section */}
-            <SettingsSection title="Change Phone Number" icon={Phone}>
-                <form onSubmit={handleSubmitPhone}>
-                    <FormInput
-                        label="New Phone Number"
-                        type="tel"
-                        name="newPhone"
-                        value={phoneData.newPhone}
-                        onChange={handlePhoneChange}
-                        placeholder="e.g., +234 801 234 5678"
-                        icon={Phone}
-                        error={phoneError}
-                        disabled={loading.phone}
-                    />
-
-                    {phoneSuccess && (
-                        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-                            <CheckCircle className="text-green-600" fontSize="small" />
-                            <span className="text-green-700 text-sm">{phoneSuccess}</span>
+                        <div className="flex justify-end pt-4">
+                            <button
+                                type="submit"
+                                disabled={loading.email}
+                                className={`
+                                    px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-3
+                                    ${theme === 'dark' ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/10'}
+                                    disabled:opacity-50 disabled:grayscale
+                                `}
+                            >
+                                {loading.email ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Email sx={{ fontSize: 16 }} />}
+                                {loading.email ? 'Verifying...' : 'Update Email'}
+                            </button>
                         </div>
-                    )}
+                    </form>
+                </SettingsSection>
 
-                    <div className="flex justify-end">
-                        <button
-                            type="submit"
-                            disabled={loading.phone}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 
-                       rounded-lg font-medium flex items-center gap-2 transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed min-w-[150px]"
-                        >
-                            {loading.phone ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    Updating...
-                                </>
-                            ) : (
-                                <>
-                                    <Phone fontSize="small" />
-                                    Update Phone Number
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </SettingsSection>
+                {/* Change Phone Number Section */}
+                <SettingsSection 
+                    title="Change Phone Number" 
+                    description="Used for two-factor authentication and alerts"
+                    icon={Phone}
+                >
+                    <form onSubmit={handleSubmitPhone} className="space-y-6">
+                        <div className="max-w-md">
+                            <FormInput
+                                label="New Phone Number"
+                                type="tel"
+                                name="newPhone"
+                                value={phoneData.newPhone}
+                                onChange={handlePhoneChange}
+                                placeholder="+1 (700) 000-0000"
+                                icon={Phone}
+                                error={phoneError}
+                                disabled={loading.phone}
+                            />
+                        </div>
+
+                        {phoneSuccess && (
+                            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3">
+                                <CheckCircle className="text-emerald-500" sx={{ fontSize: 18 }} />
+                                <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">{phoneSuccess}</span>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end pt-4">
+                            <button
+                                type="submit"
+                                disabled={loading.phone}
+                                className={`
+                                    px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-3
+                                    ${theme === 'dark' ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/10'}
+                                    disabled:opacity-50 disabled:grayscale
+                                `}
+                            >
+                                {loading.phone ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Phone sx={{ fontSize: 16 }} />}
+                                {loading.phone ? 'Updating...' : 'Update Phone'}
+                            </button>
+                        </div>
+                    </form>
+                </SettingsSection>
+            </div>
         </div>
     );
 };

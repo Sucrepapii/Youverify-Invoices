@@ -1,20 +1,29 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-toastify';
 import { API_ENDPOINTS } from '../config/api';
 import {
   Close,
   Mail,
-  ContentCopy,
-  Link,
   Person,
   Phone,
-  CheckCircle,
-  MoreVert,
-  Business
+  Business,
+  Add,
+  DeleteOutline,
+  Description as DescriptionIcon,
+  Payment,
+  Notes,
+  CalendarMonth,
+  AccountBalanceWallet,
+  History,
+  ReceiptLong,
+  SvgIconComponent
 } from '@mui/icons-material';
 import { generateInvoicePDF } from '../util/PDFGenerator';
 
+// Move interfaces outside
 interface InvoiceItem {
   id: number;
   description: string;
@@ -52,15 +61,71 @@ interface InvoiceFormProps {
   onClose: () => void;
 }
 
+interface SectionHeaderProps {
+  icon: SvgIconComponent;
+  title: string;
+  subtitle?: string;
+  theme: string;
+}
+
+interface InputFieldProps {
+  label: string;
+  placeholder?: string;
+  value: string | number;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string;
+  icon?: SvgIconComponent;
+  theme: string;
+}
+
+// Move components outside to avoid remounting issues
+const SectionHeader = ({ icon: Icon, title, subtitle, theme }: SectionHeaderProps) => (
+  <div className="flex items-center gap-3 mb-6">
+    <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+      <Icon sx={{ fontSize: 18 }} />
+    </div>
+    <div>
+      <h3 className={`text-sm font-black uppercase tracking-widest ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
+      {subtitle && <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">{subtitle}</p>}
+    </div>
+  </div>
+);
+
+const InputField = ({ label, placeholder, value, onChange, type = "text", icon: Icon, theme }: InputFieldProps) => (
+  <div className="space-y-1.5">
+    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block ml-1">{label}</label>
+    <div className="relative group">
+      {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" sx={{ fontSize: 16 }} />}
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        className={`
+          w-full transition-all duration-300 text-sm font-bold
+          ${Icon ? 'pl-9' : 'px-4'} py-3.5 rounded-2xl border-2
+          ${theme === 'dark' 
+            ? 'bg-gray-800/10 border-gray-800 text-white placeholder-gray-600 focus:bg-gray-800/20 focus:border-blue-500/50' 
+            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-blue-500 shadow-sm focus:shadow-blue-500/10'
+          }
+          focus:ring-4 focus:ring-blue-500/5 outline-none
+        `}
+      />
+    </div>
+  </div>
+);
+
 export default function InvoiceForm({ onClose }: InvoiceFormProps) {
-  // Helper function to get current date in required format
+  const { theme } = useTheme();
+  const { token } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const getCurrentDate = () => {
     const now = new Date();
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
     return now.toLocaleDateString('en-US', options);
   };
 
-  // Helper function to get date 30 days from now
   const getDueDateDefault = () => {
     const now = new Date();
     now.setDate(now.getDate() + 30);
@@ -68,130 +133,71 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
     return now.toLocaleDateString('en-US', options);
   };
 
-  const [formData, setFormData] = useState<InvoiceFormData>({
-    invoiceNo: '',
-    sender: {
-      name: '',
-      phone1: '',
-      phone2: '',
-      email: ''
-    },
-    customer: {
-      name: '',
-      phone: '',
-      email: ''
-    },
+  const initialFormData = useMemo(() => ({
+    invoiceNo: `INV-${Math.floor(Math.random() * 900000) + 100000}`,
+    sender: { name: '', phone1: '', phone2: '', email: '' },
+    customer: { name: '', phone: '', email: '' },
     invoiceDate: getCurrentDate(),
     dueDate: getDueDateDefault(),
     billingCurrency: 'USD ($)',
-    items: [
-      {
-        id: 1,
-        description: '',
-        quantity: 1,
-        price: 0,
-        total: 0
-      }
-    ],
+    items: [{ id: 1, description: '', quantity: 1, price: 0, total: 0 }],
     notes: '',
     discountRate: 0,
     accountName: '',
     accountNumber: '',
     bankAddress: '',
     achRoutingNo: ''
-  });
+  }), []);
 
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const [formData, setFormData] = useState<InvoiceFormData>(initialFormData);
 
-  const handleItemChange = (
-    id: number,
-    field: keyof InvoiceItem,
-    value: string | number
-  ) => {
-    const updatedItems = formData.items.map((item) => {
-      if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-
-        if (field === 'quantity' || field === 'price') {
-          updatedItem.total = updatedItem.quantity * updatedItem.price;
-        }
-
-        return updatedItem;
-      }
-      return item;
-    });
-
-    setFormData({ ...formData, items: updatedItems });
-  };
-
-  const addItem = () => {
-    setFormData({
-      ...formData,
-      items: [
-        ...formData.items,
-        {
-          id: Date.now(),
-          description: '',
-          quantity: 1,
-          price: 0,
-          total: 0
-        }
-      ]
-    });
-  };
-
-  const removeItem = (id: number) => {
-    if (formData.items.length > 1) {
-      setFormData({
-        ...formData,
-        items: formData.items.filter(item => item.id !== id)
-      });
-    }
-  };
-
-  const { token } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  useEffect(() => {
+    // Lock scroll
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
 
   const subtotal = formData.items.reduce((sum, item) => sum + item.total, 0);
   const discountAmount = subtotal * (formData.discountRate / 100);
   const totalAmount = subtotal - discountAmount;
 
-  const validateForm = (): boolean => {
+  const handleItemChange = (id: number, field: keyof InvoiceItem, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.map(item => {
+        if (item.id === id) {
+          const updated = { ...item, [field]: value };
+          if (field === 'quantity' || field === 'price') updated.total = (Number(updated.quantity) || 0) * (Number(updated.price) || 0);
+          return updated;
+        }
+        return item;
+      })
+    }));
+  };
 
-    // Check sender information
-    if (!formData.sender.name.trim()) {
-      toast.error('Please enter sender name');
-      return false;
-    }
-    if (!formData.sender.email.trim()) {
-      toast.error('Please enter sender email');
-      return false;
-    }
+  const addItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, { id: Date.now(), description: '', quantity: 1, price: 0, total: 0 }]
+    }));
+  };
 
-    // Check customer information
-    if (!formData.customer.name.trim()) {
-      toast.error('Please enter customer name');
-      return false;
+  const removeItem = (id: number) => {
+    if (formData.items.length > 1) {
+      setFormData(prev => ({ ...prev, items: prev.items.filter(item => item.id !== id) }));
     }
-    if (!formData.customer.email.trim()) {
-      toast.error('Please enter customer email');
-      return false;
-    }
-
-    // Check if at least one item has a description
-    const hasValidItem = formData.items.some(item => item.description.trim() !== '');
-    if (!hasValidItem) {
-      toast.error('Please add at least one item with a description');
-      return false;
-    }
-
-    return true;
   };
 
   const createInvoice = async (action: 'save' | 'send') => {
-    // Validate form before proceeding
-    if (!validateForm()) {
+    if (!formData.sender.name || !formData.customer.name || formData.items.some(i => !i.description)) {
+      toast.error('Please fill in all required fields', { theme: theme === 'dark' ? 'dark' : 'light' });
+      return;
+    }
+
+    if (!token) {
+      toast.error('Session expired. Please log in again.', { theme: theme === 'dark' ? 'dark' : 'light' });
       return;
     }
 
@@ -199,591 +205,344 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
     try {
       const response = await fetch(API_ENDPOINTS.INVOICES, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({
           ...formData,
-          title: formData.customer.name, // Use customer name as title for better listing
+          date: formData.invoiceDate,
+          title: formData.customer.name,
           clientName: formData.customer.name,
           amount: totalAmount.toFixed(2),
           status: action === 'send' ? 'pending payment' : 'draft',
-          date: formData.invoiceDate,
-          image: 'https://via.placeholder.com/300', // Placeholder for backward compatibility
+          image: 'https://via.placeholder.com/300',
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create invoice');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to create invoice');
       }
-
-      const message = action === 'send' ? 'Invoice sent successfully!' : 'Invoice saved successfully!';
-      toast.success(message);
+      toast.success(action === 'send' ? 'Invoice sent successfully!' : 'Invoice saved successfully!', { theme: theme === 'dark' ? 'dark' : 'light' });
       onClose();
     } catch (error) {
       toast.error('Failed to process invoice');
-      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    await createInvoice('save');
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
+
+  const handleCloseAttempt = () => {
+    // Robust check: Compare all fields except the random invoice number
+    const isDirty = JSON.stringify({ ...formData, invoiceNo: '' }) !== JSON.stringify({ ...initialFormData, invoiceNo: '' });
+    
+    if (isDirty) {
+      setShowConfirmClose(true);
+    } else {
+      onClose();
+    }
   };
 
-  const handleCancel = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    onClose();
-  };
-
-  const handleSendInvoice = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    await createInvoice('send');
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
-        setIsMoreMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const handleDuplicateInvoice = () => {
-    toast.success('Invoice duplicated successfully!');
-    setIsMoreMenuOpen(false);
-  };
-
-  const handleGetShareableLink = () => {
-    const shareableLink = `${window.location.origin}/invoice/${formData.invoiceNo || 'draft'}`;
-    navigator.clipboard.writeText(shareableLink);
-    toast.success('Shareable link copied to clipboard!');
-    setIsMoreMenuOpen(false);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-gray-100 flex items-start justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl my-8">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-6 rounded-t-lg">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Invoice - 1023494 - 2304</h1>
-              <p className="text-gray-500 text-sm mt-1">View the details and activity of this invoice</p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-3">
-              <button 
-                onClick={() => generateInvoicePDF(formData)}
-                className="text-blue-600 hover:text-blue-700 font-medium text-sm px-4 py-2 border border-blue-600 rounded-lg hover:bg-blue-50 transition">
-                DOWNLOAD AS PDF
-              </button>
-
-              <button
-                type='button'
-                onClick={handleSendInvoice}
-                disabled={isSubmitting}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {isSubmitting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : null}
-                <span>{isSubmitting ? 'SENDING...' : 'SEND INVOICE'}</span>
-              </button>
-
-              {/* More Dropdown Menu */}
-              <div className="relative" ref={moreMenuRef}>
-                <button
-                  onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-                  className="text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-medium border border-gray-300"
-                >
-                  MORE
-                </button>
-
-                {isMoreMenuOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                    <div className="py-1">
-                      <button
-                        onClick={handleDuplicateInvoice}
-                        className="flex items-center space-x-3 w-full px-4 py-3 text-gray-700 hover:bg-gray-50 transition text-left"
-                      >
-                        <ContentCopy sx={{ fontSize: 16 }} />
-                        <span>Duplicate Invoice</span>
-                      </button>
-                      <button
-                        onClick={handleGetShareableLink}
-                        className="flex items-center space-x-3 w-full px-4 py-3 text-gray-700 hover:bg-gray-50 transition text-left"
-                      >
-                        <Link sx={{ fontSize: 16 }} />
-                        <span>Get Shareable Link</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <Close sx={{ fontSize: 24 }} />
-              </button>
-            </div>
+  const ConfirmCloseModal = () => (
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[10001] p-4 cursor-default"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className={`
+        w-full max-w-md p-8 rounded-[2rem] shadow-2xl border animate-in fade-in zoom-in duration-300
+        ${theme === 'dark' ? 'bg-[#1a1d2e] border-gray-800' : 'bg-white border-gray-100'}
+      `}>
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center">
+            <Notes />
+          </div>
+          <div>
+            <h3 className={`text-lg font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Unsaved Changes</h3>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Do you want to save this invoice?</p>
           </div>
         </div>
 
-        <div className="p-4 md:p-6">
-          {/* PARTIAL PAYMENT Badge and REMINDERS */}
-          <div className="mb-6">
-            <div className="bg-blue-50 text-blue-800 px-3 py-1 rounded text-xs font-medium inline-block mb-4">
-              PARTIAL PAYMENT
-            </div>
-
-            <div className="flex items-center space-x-2 text-sm">
-              <span className="text-gray-600 font-medium">REMINDERS</span>
-              <div className="flex items-center space-x-3">
-                {[
-                  { days: '14', label: '14 days before due date' },
-                  { days: '7', label: '7 days before due date' },
-                  { days: '3', label: '3 days before due date' },
-                  { days: '24', label: '24 hrs before due date' }
-                ].map((reminder, idx) => (
-                  <div key={idx} className="flex items-center space-x-1">
-                    <span className="text-green-600">✓</span>
-                    <span className="text-gray-700">{reminder.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
-            {/* Left Column - Main Invoice Content (2/3 width) */}
-            <div className="col-span-1 lg:col-span-2 space-y-6">
-
-              {/* Sender, Customer & Invoice Details - Pink Background Section */}
-              <div className="bg-pink-50 rounded-lg p-6">
-                <div className="mb-6 md:mb-8">
-                  <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-4">INVOICE DETAILS</h2>
-
-                  {/* Invoice Number */}
-                  <div className="mb-4 md:mb-6">
-                    <p className="text-sm text-gray-500 mb-1">INVOICE NO</p>
-                    <p className="text-lg font-semibold">{formData.invoiceNo}</p>
-                  </div>
-
-                  {/* Sender and Customer Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mb-6">
-                    {/* Sender Column */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-gray-700 font-medium">SENDER</h3>
-                        <Business sx={{ fontSize: 16 }} className="text-gray-400" />
-                      </div>
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          placeholder="Sender Name"
-                          value={formData.sender.name}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            sender: { ...formData.sender, name: e.target.value }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <div className="flex items-center space-x-2">
-                          <Phone sx={{ fontSize: 14 }} className="text-gray-400" />
-                          <input
-                            type="tel"
-                            placeholder="Phone 1"
-                            value={formData.sender.phone1}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              sender: { ...formData.sender, phone1: e.target.value }
-                            })}
-                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Phone sx={{ fontSize: 14 }} className="text-gray-400" />
-                          <input
-                            type="tel"
-                            placeholder="Phone 2"
-                            value={formData.sender.phone2}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              sender: { ...formData.sender, phone2: e.target.value }
-                            })}
-                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Mail sx={{ fontSize: 14 }} className="text-gray-400" />
-                          <input
-                            type="email"
-                            placeholder="Email"
-                            value={formData.sender.email}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              sender: { ...formData.sender, email: e.target.value }
-                            })}
-                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Customer Column */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-gray-700 font-medium">CUSTOMER</h3>
-                        <Person sx={{ fontSize: 16 }} className="text-gray-400" />
-                      </div>
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          placeholder="Customer Name"
-                          value={formData.customer.name}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            customer: { ...formData.customer, name: e.target.value }
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium"
-                        />
-                        <div className="flex items-center space-x-2">
-                          <Phone sx={{ fontSize: 14 }} className="text-gray-400" />
-                          <input
-                            type="tel"
-                            placeholder="Phone"
-                            value={formData.customer.phone}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              customer: { ...formData.customer, phone: e.target.value }
-                            })}
-                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Mail sx={{ fontSize: 14 }} className="text-gray-400" />
-                          <input
-                            type="email"
-                            placeholder="Email"
-                            value={formData.customer.email}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              customer: { ...formData.customer, email: e.target.value }
-                            })}
-                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Invoice Dates and Currency */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">INVOICE DATE</p>
-                      <p className="font-medium">{formData.invoiceDate}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">DUE DATE</p>
-                      <p className="font-medium">{formData.dueDate}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">BILLING CURRENCY</p>
-                      <p className="font-medium">{formData.billingCurrency}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <div className="overflow-x-auto">
-                <div className="overflow-hidden rounded-lg border border-gray-300">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-50 border-b">
-                        <th className="text-left py-4 px-6 text-gray-600 font-medium text-sm">Items</th>
-                        <th className="text-right py-4 px-6 text-gray-600 font-medium text-sm">Quantity</th>
-                        <th className="text-right py-4 px-6 text-gray-600 font-medium text-sm">Price</th>
-                        <th className="text-right py-4 px-6 text-gray-600 font-medium text-sm">Total</th>
-                        <th className="w-16"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formData.items.map(item => (
-                        <tr key={item.id} className="border-b hover:bg-gray-50">
-                          <td className="py-6 px-6">
-                            <textarea
-                              value={item.description}
-                              onChange={(e) =>
-                                handleItemChange(item.id, 'description', e.target.value)
-                              }
-                              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-700"
-                              rows={item.description.includes('\n') ? 3 : 2}
-                              placeholder="Item description"
-                            />
-                          </td>
-                          <td className="py-6 px-6">
-                            <input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) =>
-                                handleItemChange(item.id, 'quantity', Number(e.target.value))
-                              }
-                              className="w-full text-right border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              min="1"
-                            />
-                          </td>
-                          <td className="py-6 px-6">
-                            <input
-                              type="number"
-                              value={item.price}
-                              onChange={(e) =>
-                                handleItemChange(item.id, 'price', Number(e.target.value))
-                              }
-                              className="w-full text-right border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              step="0.01"
-                            />
-                          </td>
-                          <td className="py-6 px-6 text-right font-semibold text-gray-800">
-                            ${item.total.toLocaleString()}.00
-                          </td>
-                          <td className="py-6 px-3">
-                            <button
-                              onClick={() => removeItem(item.id)}
-                              className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition"
-                            >
-                              <Close sx={{ fontSize: 20 }} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={addItem}
-                  className="mt-5 text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-2 text-sm"
-                >
-                  <span className="text-lg">+</span>
-                  <span>Add Item</span>
-                </button>
-              </div>
-
-              {/* Totals Section */}
-              <div className="mb-6 md:mb-8">
-                <div className="space-y-3 max-w-md ml-auto">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">SUBTOTAL</span>
-                    <span className="font-semibold text-lg">${subtotal.toLocaleString()}.00</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">DISCOUNT ({formData.discountRate}%)</span>
-                    <span className="text-red-600 font-semibold">${discountAmount.toLocaleString()}.00</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                    <span className="font-bold text-xl">TOTAL AMOUNT DUE</span>
-                    <span className="font-bold text-xl">${totalAmount.toLocaleString()}.00</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Information */}
-              <div className="mb-8">
-                <h3 className="font-semibold text-gray-800 mb-4">PAYMENT INFORMATION</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">ACCOUNT NAME</p>
-                      <input
-                        type="text"
-                        value={formData.accountName}
-                        onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
-                        className="w-full border rounded px-3 py-2"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">BANK ADDRESS</p>
-                      <input
-                        type="text"
-                        value={formData.bankAddress}
-                        onChange={(e) => setFormData({ ...formData, bankAddress: e.target.value })}
-                        className="w-full border rounded px-3 py-2"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">ACCOUNT NUMBER</p>
-                      <input
-                        type="text"
-                        value={formData.accountNumber}
-                        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                        className="w-full border rounded px-3 py-2"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">ACH ROUTING NO</p>
-                      <input
-                        type="text"
-                        value={formData.achRoutingNo}
-                        onChange={(e) => setFormData({ ...formData, achRoutingNo: e.target.value })}
-                        className="w-full border rounded px-3 py-2"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-3">NOTE</h3>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full border rounded-lg p-4 text-gray-700 min-h-[100px]"
-                  placeholder="Add a note..."
-                />
-              </div>
-            </div>
-
-            {/* Right Column - Invoice Activity (1/3 width) */}
-            <div className="space-y-6">
-              {/* Invoice Activity */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-semibold text-gray-800">INVOICE Activity</h3>
-                  <MoreVert sx={{ fontSize: 16 }} className="text-gray-400" />
-                </div>
-                <div className="relative">
-                  {/* Vertical timeline line */}
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-
-                  <div className="space-y-6">
-                    {[
-                      {
-                        user: 'You',
-                        time: 'Today, 12:20 PM',
-                        action: 'Created Invoice 00239434/Olaniyi Ojo Adewale',
-                        status: 'completed'
-                      },
-                      {
-                        user: 'You',
-                        time: 'Today, 12:20 PM',
-                        action: 'Sent Invoice 00239434/Olaniyi Ojo Adewale to Olaniyi Ojo Adewale',
-                        status: 'completed'
-                      },
-                      {
-                        user: 'Payment Confirmed',
-                        time: 'Today, 12:20 PM',
-                        action: 'You manually confirmed a partial payment of $503,000.00',
-                        status: 'payment'
-                      },
-                      {
-                        user: 'Payment Confirmed',
-                        time: 'Today, 12:20 PM',
-                        action: 'You manually confirmed a full payment of $6,000,000.00',
-                        status: 'payment'
-                      },
-                      {
-                        user: 'You',
-                        time: 'Today, 12:20 PM',
-                        action: 'Sent Invoice 00239434/Olaniyi Ojo Adewale to Olaniyi Ojo Adewale',
-                        status: 'completed'
-                      }
-                    ].map((activity, idx) => (
-                      <div key={idx} className="relative flex items-start space-x-3">
-                        {/* Timeline dot with connector */}
-                        <div className="flex-shrink-0 relative z-10">
-                          <div className={`
-              w-8 h-8 rounded-full flex items-center justify-center border-2
-              ${activity.status === 'payment'
-                              ? 'bg-green-100 border-green-500'
-                              : 'bg-blue-100 border-blue-500'
-                            }
-            `}>
-                            {activity.status === 'payment' ? (
-                              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                              </svg>
-                            ) : (
-                              <CheckCircle sx={{ fontSize: 16 }} className={activity.status === 'payment' ? 'text-green-600' : 'text-blue-600'} />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Activity content */}
-                        <div className="flex-1">
-                          {/* Bubble/card container */}
-                          <div className={`
-              p-3 rounded-lg border
-              ${activity.status === 'payment'
-                              ? 'bg-green-50 border-green-200'
-                              : 'bg-gray-50 border-gray-200'
-                            }
-            `}>
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <div className="flex items-center space-x-2">
-                                  <span className="font-medium text-sm text-gray-800">{activity.user}</span>
-                                  {activity.status === 'payment' && (
-                                    <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium">
-                                      Payment
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-gray-700 text-sm mt-1 leading-tight">{activity.action}</p>
-                              </div>
-                              <span className="text-xs text-gray-500 whitespace-nowrap">{activity.time}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions - Below the grid */}
-          <div className="mt-8 flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                e.preventDefault();
-                handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
-              }}
-              disabled={isSubmitting}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-            >
-              {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              <span>{isSubmitting ? 'Saving...' : 'Save Invoice'}</span>
-            </button>
-          </div>
+        <div className="space-y-3">
+          <button 
+            onClick={() => createInvoice('save')}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20"
+          >
+            Save as Draft & Close
+          </button>
+          <button 
+            onClick={onClose}
+            className={`w-full py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${theme === 'dark' ? 'border-gray-800 text-gray-400 hover:text-rose-500 hover:bg-rose-500/5' : 'border-gray-100 text-gray-500 hover:text-rose-600 hover:bg-rose-50'}`}
+          >
+            Discard Changes
+          </button>
+          <button 
+            onClick={() => setShowConfirmClose(false)}
+            className={`w-full py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${theme === 'dark' ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-900'}`}
+          >
+            Go Back
+          </button>
         </div>
       </div>
     </div>
+  );
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 bg-black/80 backdrop-blur-xl flex items-start justify-center p-4 z-[9999] overflow-y-auto cursor-pointer"
+      onClick={handleCloseAttempt}
+    >
+      {showConfirmClose && <ConfirmCloseModal />}
+      <div 
+        className={`
+          w-full max-w-7xl my-4 rounded-[2.5rem] shadow-2xl overflow-hidden border transition-all duration-300 cursor-default
+          ${theme === 'dark' ? 'bg-[#0f111a] border-gray-800' : 'bg-white border-gray-100'}
+        `}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Top Navigation Bar */}
+        <div className={`
+          px-8 py-6 border-b flex justify-between items-center sticky top-0 z-50 backdrop-blur-md
+          ${theme === 'dark' ? 'bg-[#0f111a]/80 border-gray-800' : 'bg-white/80 border-gray-100'}
+        `}>
+          <div className="flex items-center gap-4">
+             <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <DescriptionIcon className="text-white" />
+             </div>
+             <div>
+                <h1 className={`text-xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  {formData.invoiceNo} <span className="text-blue-500 font-medium ml-2">DRAFT</span>
+                </h1>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">New Invoice Details</p>
+             </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+             <button 
+               onClick={() => generateInvoicePDF(formData)}
+               className={`hidden md:flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${theme === 'dark' ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+             >
+                Download PDF
+             </button>
+             <button 
+                onClick={() => createInvoice('save')}
+                disabled={isSubmitting}
+                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${theme === 'dark' ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+             >
+                {isSubmitting ? 'Saving...' : 'Save Draft'}
+             </button>
+             <button 
+                onClick={() => createInvoice('send')}
+                disabled={isSubmitting}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+             >
+                {isSubmitting ? 'Processing...' : 'Send Invoice'}
+             </button>
+             <button 
+                onClick={handleCloseAttempt} 
+                title="Close and save as draft"
+                className={`p-3 rounded-2xl transition-all active:scale-95 ${theme === 'dark' ? 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}
+              >
+                 <Close sx={{ fontSize: 22 }} />
+              </button>
+          </div>
+        </div>
+
+        <div className="p-8 md:p-12">
+          {/* Main Layout Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+             {/* Main Content Area */}
+             <div className="lg:col-span-8 space-y-12">
+                
+                {/* Header Information Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-blue-50/30 border-blue-100'}`}>
+                      <SectionHeader icon={Business} title="From" subtitle="Your Company Details" theme={theme} />
+                      <div className="space-y-4">
+                         <InputField label="Entity Name" placeholder="Your Company Name" value={formData.sender.name} onChange={(e) => setFormData({...formData, sender: {...formData.sender, name: e.target.value}})} icon={Business} theme={theme} />
+                         <InputField label="Email Address" placeholder="email@address.com" value={formData.sender.email} onChange={(e) => setFormData({...formData, sender: {...formData.sender, email: e.target.value}})} icon={Mail} theme={theme} />
+                         <div className="grid grid-cols-2 gap-4">
+                            <InputField label="Phone Number" placeholder="+1..." value={formData.sender.phone1} onChange={(e) => setFormData({...formData, sender: {...formData.sender, phone1: e.target.value}})} icon={Phone} theme={theme} />
+                            <InputField label="Secondary Phone" placeholder="+1..." value={formData.sender.phone2} onChange={(e) => setFormData({...formData, sender: {...formData.sender, phone2: e.target.value}})} icon={Phone} theme={theme} />
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-indigo-50/30 border-indigo-100'}`}>
+                      <SectionHeader icon={Person} title="To" subtitle="Customer Details" theme={theme} />
+                      <div className="space-y-4">
+                         <InputField label="Customer Name" placeholder="Customer Name" value={formData.customer.name} onChange={(e) => setFormData({...formData, customer: {...formData.customer, name: e.target.value}})} icon={Person} theme={theme} />
+                         <InputField label="Client Email" placeholder="client@address.com" value={formData.customer.email} onChange={(e) => setFormData({...formData, customer: {...formData.customer, email: e.target.value}})} icon={Mail} theme={theme} />
+                         <InputField label="Contact Number" placeholder="+1..." value={formData.customer.phone} onChange={(e) => setFormData({...formData, customer: {...formData.customer, phone: e.target.value}})} icon={Phone} theme={theme} />
+                      </div>
+                   </div>
+                </div>
+
+                {/* Line Items Table */}
+                <div>
+                   <SectionHeader icon={ReceiptLong} title="Invoice Items" subtitle="Services & Goods Rendered" theme={theme} />
+                   <div className={`rounded-3xl border overflow-hidden ${theme === 'dark' ? 'border-gray-800 bg-gray-800/10' : 'border-gray-100 bg-gray-50/50'}`}>
+                      <table className="w-full">
+                         <thead>
+                            <tr className={`${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-100'} text-[10px] font-black uppercase tracking-[0.2em] text-gray-500`}>
+                               <th className="px-6 py-4 text-left">Description</th>
+                               <th className="px-6 py-4 text-center w-24">Qty</th>
+                               <th className="px-6 py-4 text-right w-32">Price</th>
+                               <th className="px-6 py-4 text-right w-40">Total</th>
+                               <th className="w-16"></th>
+                            </tr>
+                         </thead>
+                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                            {formData.items.map((item) => (
+                               <tr key={item.id} className="group hover:bg-blue-500/5 transition-colors">
+                                  <td className="px-6 py-4">
+                                     <textarea 
+                                        className={`w-full bg-transparent border-none focus:ring-0 text-sm font-semibold transition-all ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+                                        placeholder="Item description..."
+                                        rows={1}
+                                        value={item.description}
+                                        onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
+                                     />
+                                  </td>
+                                  <td className="px-6 py-4">
+                                     <input 
+                                        type="number"
+                                        className={`w-full bg-transparent border-none text-center focus:ring-0 text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+                                        value={item.quantity}
+                                        onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
+                                     />
+                                  </td>
+                                  <td className="px-6 py-4">
+                                     <input 
+                                        type="number"
+                                        className={`w-full bg-transparent border-none text-right focus:ring-0 text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+                                        value={item.price}
+                                        onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
+                                     />
+                                  </td>
+                                  <td className="px-6 py-4 text-right">
+                                     <span className={`text-sm font-black ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                                        ${item.total.toLocaleString()}
+                                     </span>
+                                  </td>
+                                  <td className="px-6 py-4 text-center">
+                                     <button onClick={() => removeItem(item.id)} className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100">
+                                        <DeleteOutline sx={{ fontSize: 18 }} />
+                                     </button>
+                                  </td>
+                               </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                      <div className="p-4 bg-gray-50/50 dark:bg-gray-800/10">
+                         <button 
+                            onClick={addItem}
+                            className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${theme === 'dark' ? 'text-blue-400 hover:bg-blue-400/10' : 'text-blue-600 hover:bg-blue-50'}`}
+                         >
+                            <Add sx={{ fontSize: 14 }} /> Add Line Item
+                         </button>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Financial Totals */}
+                <div className="flex justify-end pt-6">
+                   <div className={`w-full max-sm p-8 rounded-[2rem] border space-y-4 ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-gray-50/30 border-gray-100'}`}>
+                      <div className="flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-widest">
+                         <span>Subtotal</span>
+                         <span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>${subtotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-widest">
+                         <span>Discount Rate</span>
+                         <div className="flex items-center gap-2">
+                            <input 
+                               type="number" 
+                               className="w-12 bg-transparent border-none text-right p-0 focus:ring-0 font-black text-rose-500" 
+                               value={formData.discountRate}
+                               onChange={(e) => setFormData({...formData, discountRate: Number(e.target.value)})}
+                            />
+                            <span>%</span>
+                         </div>
+                      </div>
+                      <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                         <span className="text-sm font-black uppercase tracking-[0.2em] text-blue-500">Total Due</span>
+                         <span className={`text-3xl font-black tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            ${totalAmount.toLocaleString()}
+                         </span>
+                      </div>
+                   </div>
+                </div>
+             </div>
+
+             {/* Sidebar Settings Area */}
+             <div className="lg:col-span-4 space-y-8">
+                {/* Configuration Card */}
+                <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800 shadow-2xl' : 'bg-white border-gray-100 shadow-xl'}`}>
+                   <SectionHeader icon={Payment} title="Invoice Settings" subtitle="Dates and Currency" theme={theme} />
+                   <div className="space-y-6">
+                      <InputField label="Invoice Date" value={formData.invoiceDate} onChange={(e) => setFormData({...formData, invoiceDate: e.target.value})} icon={CalendarMonth} theme={theme} />
+                      <InputField label="Due Date" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} icon={CalendarMonth} theme={theme} />
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Currency</label>
+                         <select 
+                            className={`w-full py-2.5 rounded-xl border text-sm font-semibold transition-all ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-100 text-gray-900'}`}
+                            value={formData.billingCurrency}
+                            onChange={(e) => setFormData({...formData, billingCurrency: e.target.value})}
+                         >
+                            <option>USD ($)</option>
+                            <option>EUR (€)</option>
+                            <option>GBP (£)</option>
+                            <option>NGN (₦)</option>
+                         </select>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Settlement Instructions */}
+                <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-emerald-50/20 border-emerald-100'}`}>
+                   <SectionHeader icon={AccountBalanceWallet} title="Payment Details" subtitle="Bank Information" theme={theme} />
+                   <div className="space-y-4">
+                      <InputField label="Account Name" placeholder="Full Account Name" value={formData.accountName} onChange={(e) => setFormData({...formData, accountName: e.target.value})} theme={theme} />
+                      <InputField label="Account Number" placeholder="Account or IBAN" value={formData.accountNumber} onChange={(e) => setFormData({...formData, accountNumber: e.target.value})} theme={theme} />
+                      <InputField label="Routing / SWIFT" placeholder="SWIFT / ACH / SORT" value={formData.achRoutingNo} onChange={(e) => setFormData({...formData, achRoutingNo: e.target.value})} theme={theme} />
+                   </div>
+                </div>
+
+                {/* Footer Notes */}
+                <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-amber-50/20 border-amber-100'}`}>
+                   <SectionHeader icon={Notes} title="Notes" subtitle="Additional Information" theme={theme} />
+                   <textarea 
+                      className={`w-full bg-transparent border-none focus:ring-0 text-sm font-medium min-h-[120px] transition-all ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}
+                      placeholder="Enter additional terms or gratitude..."
+                      value={formData.notes}
+                      onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                   />
+                </div>
+             </div>
+          </div>
+
+          <div className="mt-20 pt-12 border-t border-gray-100 dark:border-gray-800">
+             <SectionHeader icon={History} title="Draft History" subtitle="Recent changes" theme={theme} />
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[
+                  { user: 'You', action: 'Draft Created', time: 'Just now' },
+                  { user: 'System', action: 'Saved to cloud', time: 'Just now' }
+                ].map((act, i) => (
+                   <div key={i} className={`p-4 rounded-2xl border flex items-center gap-4 ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                      <div>
+                         <p className={`text-xs font-black uppercase tracking-widest ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{act.action}</p>
+                         <p className="text-[10px] font-bold text-gray-500">{act.user} • {act.time}</p>
+                      </div>
+                   </div>
+                ))}
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
