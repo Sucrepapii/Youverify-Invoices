@@ -8,7 +8,6 @@ import {
   People,
   Person,
   AccountBalanceWallet,
-  PieChart,
   HelpOutline,
   Logout,
   Close,
@@ -36,7 +35,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const menuItems: MenuItem[] = [
     { icon: Home, label: 'Dashboard', path: '/dashboard', hasRoute: true },
-    { icon: PieChart, label: 'Financial Overview', path: '/overview', hasRoute: true },
     { icon: AccountBalanceWallet, label: 'Accounts', path: '/accounts', hasRoute: true },
     { icon: ReceiptLong, label: 'Invoices', path: '/recent-invoices', hasRoute: true },
     { icon: People, label: 'Beneficiaries', path: '/beneficiaries', hasRoute: true },

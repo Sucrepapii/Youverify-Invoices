@@ -33,5 +33,77 @@
     "id": "283a7b18-54ae-4006-a624-b5a087a7e420",
     "email": "testadmin@youverify.com",
     "password": "$2a$12$Wbg9/tAGoqH4PHrnBMQJ9OP/QiQenEgULaiULJmdfHicSKU7GU5Hm"
+  },
+  {
+    "id": "6ec5ea79-d513-4af2-91e0-0ce9d149a566",
+    "email": "test2@example.com",
+    "password": "$2a$12$i5tAkRGG8oM3n8kQUy.9ZuyIYjeb2n.BjfG9gW67AjUD3LIywkyzu"
+  },
+  {
+    "id": "54e97998-b572-450e-9e0a-5380df83b500",
+    "email": "final@test.com",
+    "password": "$2a$12$Lg84UHH/iKJGX.SHy0vgKeyfEHIV5R387/gf.PvVPJFWzHqTyG9Gm"
+  },
+  {
+    "id": "9560b62b-f91a-4957-8f56-30761518a8d7",
+    "email": "final_test1774603736042@test.com",
+    "password": "$2a$12$Qm7w7K64YT4x.UeL.PzjrOlpQ6KI5K/akoUnLyNdX2.pkgYOxvsNS"
+  },
+  {
+    "id": "0b14127e-da9c-4ee5-954c-d0cac928c7e6",
+    "email": "token_test1774603764307@test.com",
+    "password": "$2a$12$VFgbj/av5.OGT.eWq3CoSecU5GZXiUgChk.byXs/g52mO/OUAr0Cu"
+  },
+  {
+    "id": "8afb0130-7ad8-4aba-a491-3482759ba0b2",
+    "email": "user_1774604367741@test.com",
+    "password": "$2a$12$Ytt3DglZlBDQ.5s97hcHNeePt/THgTFCkhCKdmYN102ee6xnP0dCC"
+  },
+  {
+    "id": "70492af6-4694-45c1-a337-15f4f42e1120",
+    "email": "user_1774604419384@test.com",
+    "password": "$2a$12$wvyC4gH6x/UQ/Be8XaEp2eYL05NFaXudVOdwQXjv7yE9jDUFM/gQq"
+  },
+  {
+    "id": "c19ee727-dd4a-4835-9d44-2acce7dda5d9",
+    "name": "Final Tester",
+    "email": "final_tester_real@test.com",
+    "password": "$2a$12$DUYr6p6KDgKP0egKsW7hGeGxndckPu3xQbP5K05by4ySXsHDXQ6Ya"
+  },
+  {
+    "id": "4cf1da89-af01-4886-a76f-83bd309f486f",
+    "name": "JD Admin",
+    "email": "admin@example.com",
+    "password": "$2a$12$DKirBSaTIniwYTlByEcI2ugcfHLqUOAm5i8BGgfEMs0Mqcyv2Cbvu"
+  },
+  {
+    "id": "d0b440f6-5562-4b1e-8ade-ef516a9f22ea",
+    "name": "Final Admin",
+    "email": "admin.final@example.com",
+    "password": "$2a$12$rLRwJF/U89jaCt8/8RYezuoQuP5uX/Mr31jGNEzF.u/Z35ph1ImFW"
+  },
+  {
+    "id": "016b7824-5e71-44c5-84bd-918794d5e68b",
+    "name": "Test User",
+    "email": "test.1774608981801@example.com",
+    "password": "$2a$12$vIjPG0b5WFNYkvkVRmR3XuxbDRZ3Js7RqD2NH0KsO9tUHxs495d9O"
+  },
+  {
+    "id": "56b4d603-12f2-48fc-8abb-25aa1cdefc50",
+    "name": "Test User",
+    "email": "test@abc.com",
+    "password": "$2a$12$NJwA7P0dUk83onz10u7vyOP8DBqZ7xbb1AtcRn5YlR63XUfvBiZHu"
+  },
+  {
+    "id": "4f7aacb2-0c6e-4db3-a514-c5506a42236f",
+    "name": "Tester User",
+    "email": "tester@abc.com",
+    "password": "$2a$12$em.w/E8wJqyqKla0pXUiAuyWGN85h8GVhqn2vyebZ5kNBbz/cmL/O"
+  },
+  {
+    "id": "1aae7731-7a3d-4fb6-864d-e7a37acad45e",
+    "name": "Final Test",
+    "email": "finaltest433@abc.com",
+    "password": "$2a$12$Egla.k6Lnd8JGejPvf4h3.PHcwPGSwLkwUde4q5MMk3ifzUqJpXCe"
   }
 ]

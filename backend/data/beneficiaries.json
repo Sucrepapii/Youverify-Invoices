@@ -1,0 +1,57 @@
+[
+  {
+    "id": "98e26cb7-753b-497e-86b7-3ba2bb051ca3",
+    "userId": "token_test1774603764307@test.com",
+    "name": "",
+    "email": "",
+    "phone": "",
+    "accountName": "",
+    "accountNumber": "",
+    "bankName": "",
+    "createdAt": "2026-03-27T09:35:24.711Z"
+  },
+  {
+    "id": "94feb990-7514-4839-89ae-6cdc75bebd41",
+    "userId": "final_tester_real@test.com",
+    "name": "Gold Client",
+    "email": "gold@client.com",
+    "phone": "+234 800 000 0001",
+    "accountName": "",
+    "accountNumber": "5554443332",
+    "bankName": "Access Bank",
+    "createdAt": "2026-03-27T09:47:07.363Z"
+  },
+  {
+    "id": "a793edd2-4aad-44d8-8a86-5061334a4283",
+    "userId": "finaltest433@abc.com",
+    "name": "Test Beneficiary",
+    "email": "test@example.com",
+    "phone": "08012345678",
+    "accountName": "",
+    "accountNumber": "",
+    "bankName": "",
+    "createdAt": "2026-03-27T11:28:30.837Z"
+  },
+  {
+    "id": "dbebac8a-0e0a-4de4-ac67-5801a0c8a973",
+    "userId": "finaltest433@abc.com",
+    "name": "",
+    "email": "",
+    "phone": "",
+    "accountName": "",
+    "accountNumber": "",
+    "bankName": "",
+    "createdAt": "2026-03-27T11:31:20.293Z"
+  },
+  {
+    "id": "d7687d0c-a38a-47ea-8772-e6443920056e",
+    "userId": "finaltest433@abc.com",
+    "name": "Main Business",
+    "email": "main@business.com",
+    "phone": "08012345678",
+    "accountName": "",
+    "accountNumber": "",
+    "bankName": "Zenith Bank",
+    "createdAt": "2026-03-27T11:32:38.725Z"
+  }
+]

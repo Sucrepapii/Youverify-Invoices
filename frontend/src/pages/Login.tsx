@@ -9,6 +9,7 @@ import { API_ENDPOINTS } from '../config/api';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(true);
 
@@ -26,7 +27,7 @@ export default function Login() {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(isLoginMode ? { email, password } : { email, password, name }),
       });
 
       const data = await response.json();
@@ -78,6 +79,30 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLoginMode && (
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-1">Full Name</label>
+                <div className="relative group">
+                  <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${theme === 'dark' ? 'text-gray-600 group-focus-within:text-blue-500' : 'text-gray-400 group-focus-within:text-blue-500'}`} size={18} />
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={`
+                      w-full pl-12 pr-4 py-3.5 rounded-2xl border text-sm font-semibold transition-all
+                      ${theme === 'dark' 
+                        ? 'bg-gray-800/40 border-gray-700 text-white placeholder-gray-600 focus:bg-gray-700/50' 
+                        : 'bg-gray-50/50 border-gray-100 text-gray-900 placeholder-gray-400 focus:bg-white focus:shadow-lg'
+                      }
+                      focus:border-blue-500 outline-none focus:ring-4 focus:ring-blue-500/10
+                    `}
+                    placeholder="e.g. John Doe"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-1">Email Address</label>
               <div className="relative group">

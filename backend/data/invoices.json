@@ -37,5 +37,52 @@
     "status": "done",
     "image": "https://via.placeholder.com/300",
     "id": "ba0e7bea-5d57-4ae7-bbfa-c8717d6874ac"
+  },
+  {
+    "invoiceNo": "INV-851084",
+    "sender": {
+      "name": "My Awesome CoMy Awesome Co",
+      "phone1": "+1231567890",
+      "phone2": "",
+      "email": "me@awesome.com"
+    },
+    "customer": {
+      "name": "Gold Client",
+      "email": "gold@client.com",
+      "phone": "+234 800 000 0001"
+    },
+    "invoiceDate": "March 27, 2026",
+    "dueDate": "April 26, 2026",
+    "billingCurrency": "USD ($)",
+    "items": [
+      {
+        "id": 1,
+        "description": "",
+        "quantity": "11",
+        "price": "100",
+        "total": 1100
+      },
+      {
+        "id": 1774605516409,
+        "description": "Consulting Services",
+        "quantity": 1,
+        "price": "1000",
+        "total": 1000
+      }
+    ],
+    "notes": "",
+    "discountRate": 0,
+    "accountName": "My Account",
+    "accountNumber": "1234567890",
+    "bankAddress": "",
+    "achRoutingNo": "",
+    "date": "March 27, 2026",
+    "title": "Gold Client",
+    "clientName": "Gold Client",
+    "amount": "2100.00",
+    "status": "draft",
+    "image": "https://via.placeholder.com/300",
+    "id": "51358f08-4ec4-4ba8-aed0-98830ecaa3c0",
+    "invoiceNumber": "INV-5269"
   }
 ]

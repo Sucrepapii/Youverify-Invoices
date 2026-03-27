@@ -5,6 +5,8 @@ const { Server } = require("socket.io");
 
 const authRoutes = require("./routes/auth");
 const invoicesRoutes = require("./routes/invoices");
+const beneficiariesRoutes = require("./routes/beneficiaries");
+const accountsRoutes = require("./routes/accounts");
 
 const app = express();
 const server = http.createServer(app);
@@ -52,6 +54,8 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/auth", authRoutes);
 app.use("/invoices", invoicesRoutes);
+app.use("/beneficiaries", beneficiariesRoutes);
+app.use("/accounts", accountsRoutes);
 
 // Error handling middleware
 app.use((error, req, res, next) => {

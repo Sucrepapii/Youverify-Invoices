@@ -28,6 +28,7 @@ async function add(data) {
 
   const user = {
     id: generateId(),
+    name: data.name || data.email.split('@')[0], // Fallback to email prefix if name is missing
     email: data.email,
     password: hashedPassword,
   };

@@ -13,4 +13,6 @@ export const API_ENDPOINTS = {
     ME: `${API_URL}/auth/me`,
   },
   INVOICES: `${API_URL}/invoices`,
+  BENEFICIARIES: `${API_URL}/beneficiaries`,
+  ACCOUNTS: `${API_URL}/accounts`,
 };

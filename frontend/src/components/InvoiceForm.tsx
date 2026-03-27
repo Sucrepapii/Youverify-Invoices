@@ -144,7 +144,65 @@ const InputField = ({ label, placeholder, value, onChange, type = "text", icon: 
 export default function InvoiceForm({ onClose, invoice: existingInvoice }: InvoiceFormProps) {
   const { theme } = useTheme();
   const { token } = useAuth();
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchBeneficiaries = async () => {
+      if (!token) return;
+      try {
+        const response = await fetch(API_ENDPOINTS.BENEFICIARIES, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setBeneficiaries(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch beneficiaries');
+      }
+    };
+
+    const fetchAccounts = async () => {
+      if (!token) return;
+      try {
+        const response = await fetch(API_ENDPOINTS.ACCOUNTS, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setAccounts(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch accounts');
+      }
+    };
+
+    fetchBeneficiaries();
+    fetchAccounts();
+  }, [token]);
+
+  const handleBeneficiarySelect = (beneficiary: Beneficiary) => {
+    setFormData(prev => ({
+      ...prev,
+      customer: {
+        name: beneficiary.name,
+        email: beneficiary.email,
+        phone: beneficiary.phone
+      }
+    }));
+  };
+
+  const handleAccountSelect = (account: Account) => {
+    setFormData(prev => ({
+      ...prev,
+      accountName: account.accountName,
+      accountNumber: account.accountNumber,
+      bankAddress: account.bankAddress || '',
+      achRoutingNo: account.achRoutingNo || ''
+    }));
+  };
 
   const getCurrentDate = () => {
     const now = new Date();
@@ -463,13 +521,36 @@ export default function InvoiceForm({ onClose, invoice: existingInvoice }: Invoi
                    </div>
 
                    <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-indigo-50/30 border-indigo-100'}`}>
-                      <SectionHeader icon={Person} title="To" subtitle="Customer Details" theme={theme} />
+                      <div className="flex items-center justify-between mb-6">
+                        <SectionHeader icon={Person} title="To" subtitle="Customer Details" theme={theme} />
+                        {beneficiaries.length > 0 && (
+                          <div className="relative group">
+                            <select
+                              className={`
+                                appearance-none pl-3 pr-8 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all outline-none cursor-pointer
+                                ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-blue-400 hover:bg-gray-750' : 'bg-white border-blue-100 text-blue-600 hover:bg-blue-50'}
+                              `}
+                              onChange={(e) => {
+                                const b = beneficiaries.find(ben => ben.id === e.target.value);
+                                if (b) handleBeneficiarySelect(b);
+                              }}
+                              defaultValue=""
+                            >
+                              <option value="" disabled>QUICK SELECT</option>
+                              {beneficiaries.map(b => (
+                                <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>
+                              ))}
+                            </select>
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[10px]">▼</div>
+                          </div>
+                        )}
+                      </div>
                       <div className="space-y-4">
-                       <div className="space-y-4">
+                        <div className="space-y-4">
                           <InputField label="Customer Name" required placeholder="Customer Name" value={formData.customer.name} onChange={(e) => setFormData({...formData, customer: {...formData.customer, name: e.target.value}})} icon={Person} theme={theme} />
                           <InputField label="Client Email" required placeholder="client@address.com" value={formData.customer.email} onChange={(e) => setFormData({...formData, customer: {...formData.customer, email: e.target.value}})} icon={Mail} theme={theme} />
                           <InputField label="Contact Number" required placeholder="+1..." value={formData.customer.phone} onChange={(e) => setFormData({...formData, customer: {...formData.customer, phone: e.target.value}})} icon={Phone} theme={theme} />
-                       </div>
+                        </div>
                       </div>
                    </div>
                 </div>
@@ -597,7 +678,30 @@ export default function InvoiceForm({ onClose, invoice: existingInvoice }: Invoi
 
                 {/* Settlement Instructions */}
                 <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800 shadow-2xl' : 'bg-white border-gray-100 shadow-xl'}`}>
-                   <SectionHeader icon={AccountBalanceWallet} title="Payment Details" subtitle="Bank Settlement Information" theme={theme} />
+                   <div className="flex items-center justify-between mb-6">
+                     <SectionHeader icon={AccountBalanceWallet} title="Payment Details" subtitle="Bank Settlement Information" theme={theme} />
+                     {accounts.length > 0 && (
+                       <div className="relative group">
+                         <select
+                           className={`
+                             appearance-none pl-3 pr-8 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all outline-none cursor-pointer
+                             ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-emerald-400 hover:bg-gray-750' : 'bg-white border-emerald-100 text-emerald-600 hover:bg-emerald-50'}
+                           `}
+                           onChange={(e) => {
+                             const acc = accounts.find(a => a.id === e.target.value);
+                             if (acc) handleAccountSelect(acc);
+                           }}
+                           defaultValue=""
+                         >
+                           <option value="" disabled>QUICK SETTLEMENT</option>
+                           {accounts.map(acc => (
+                             <option key={acc.id} value={acc.id}>{acc.bankName.toUpperCase()} - {acc.accountNumber}</option>
+                           ))}
+                         </select>
+                         <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[10px]">▼</div>
+                       </div>
+                     )}
+                   </div>
                    <div className="space-y-6">
                       <InputField label="Account Name" required placeholder="Full Account Name" value={formData.accountName} onChange={(e) => setFormData({...formData, accountName: e.target.value})} icon={AccountBalanceWallet} theme={theme} />
                       <InputField label="Account Number" required placeholder="Account or IBAN" value={formData.accountNumber} onChange={(e) => setFormData({...formData, accountNumber: e.target.value})} icon={ReceiptLong} theme={theme} />

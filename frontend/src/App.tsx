@@ -10,6 +10,8 @@ import RecentInvoices from './components/RecentInvoices'
 import RecentActivities from './components/RecentActivities'
 import Sidebar from './components/Sidebar'
 import ProfilePage from './pages/Profile'
+import BeneficiariesPage from './pages/Beneficiaries'
+import AccountsPage from './pages/Accounts'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { SocketProvider } from './context/SocketContext'
@@ -58,14 +60,9 @@ function AppContent() {
                     <DashboardPage />
                 </RequireAuth>
                 } />
-                <Route path="/overview" element={
-                <RequireAuth>
-                    <DashboardPage />
-                </RequireAuth>
-                } />
                 <Route path="/accounts" element={
                 <RequireAuth>
-                    <PlaceholderPage title="Accounts" description="Manage your bank accounts and balances" icon="AccountBalance" />
+                    <AccountsPage />
                 </RequireAuth>
                 } />
                 <Route path="/recent-invoices" element={
@@ -75,7 +72,7 @@ function AppContent() {
                 } />
                 <Route path="/beneficiaries" element={
                 <RequireAuth>
-                    <PlaceholderPage title="Beneficiaries" description="Manage your clients and payment recipients" icon="People" />
+                    <BeneficiariesPage />
                 </RequireAuth>
                 } />
                 <Route path="/support" element={
