@@ -9,7 +9,7 @@ import InvoiceOverview from './components/InvoiceOverview'
 import RecentInvoices from './components/RecentInvoices'
 import RecentActivities from './components/RecentActivities'
 import Sidebar from './components/Sidebar'
-import SettingsPage from './components/pages/Settings'
+import ProfilePage from './pages/Profile'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { SocketProvider } from './context/SocketContext'
@@ -42,7 +42,7 @@ function AppContent() {
   return (
     <BrowserRouter>
       <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
-        <ToastContainer position="top-right" autoClose={3000} theme={theme} />
+        <ToastContainer position="top-right" autoClose={3000} theme={theme} style={{ zIndex: 99999 }} />
         <SocketProvider>
           <Routes>
                 <Route path="/login" element={<Login />} />
@@ -83,9 +83,9 @@ function AppContent() {
                     <PlaceholderPage title="Support" description="Get help with your account or invoices" icon="HelpOutline" />
                 </RequireAuth>
                 } />
-                <Route path="/settings" element={
+                <Route path="/profile" element={
                 <RequireAuth>
-                    <SettingsPage />
+                    <ProfilePage />
                 </RequireAuth>
                 } />
             </Routes>

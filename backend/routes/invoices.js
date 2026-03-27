@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { getAll, get, add, replace, remove } = require("../data/invoice");
+const { getAll, get, add, replace, remove, updateStatus } = require("../data/invoice");
 const { checkAuth } = require("../util/auth");
 const {
   isValidText,
@@ -105,6 +105,20 @@ router.patch("/:id", async (req, res, next) => {
   try {
     const updatedInvoice = await replace(req.params.id, data);
     res.json({ message: "Invoice updated.", invoice: updatedInvoice });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/:id/status", async (req, res, next) => {
+  const { status } = req.body;
+  const allowed = ['draft', 'sent', 'paid', 'done', 'cancelled', 'overdue', 'pending payment', 'unpaid'];
+  if (!status || !allowed.includes(status.toLowerCase())) {
+    return res.status(422).json({ message: "Invalid status value." });
+  }
+  try {
+    const updated = await updateStatus(req.params.id, status);
+    res.json({ message: "Invoice status updated.", invoice: updated });
   } catch (error) {
     next(error);
   }

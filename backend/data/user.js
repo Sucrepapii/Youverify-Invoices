@@ -46,5 +46,18 @@ async function get(email) {
   return user;
 }
 
+async function update(email, updatedData) {
+  const users = readFromFile();
+  const index = users.findIndex((user) => user.email === email);
+  if (index === -1) {
+    throw new NotFoundError("Could not find user for email " + email);
+  }
+
+  users[index] = { ...users[index], ...updatedData };
+  writeToFile(users);
+  return { id: users[index].id, email: users[index].email };
+}
+
 exports.add = add;
 exports.get = get;
+exports.update = update;

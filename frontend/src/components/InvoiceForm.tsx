@@ -57,8 +57,31 @@ interface InvoiceFormData {
   achRoutingNo: string;
 }
 
+interface ExistingInvoice {
+  id: string;
+  invoiceNo?: string;
+  invoiceNumber?: string;
+  sender?: { name: string; phone1: string; phone2: string; email: string };
+  customer?: { name?: string; phone?: string; email?: string };
+  customerName?: string;
+  clientName?: string;
+  invoiceDate?: string;
+  date?: string;
+  dueDate?: string;
+  billingCurrency?: string;
+  items?: Array<{ id: number; description: string; quantity: number; price: number; total: number }>;
+  notes?: string;
+  discountRate?: number;
+  accountName?: string;
+  accountNumber?: string;
+  bankAddress?: string;
+  achRoutingNo?: string;
+  [key: string]: unknown;
+}
+
 interface InvoiceFormProps {
   onClose: () => void;
+  invoice?: ExistingInvoice;
 }
 
 interface SectionHeaderProps {
@@ -76,6 +99,7 @@ interface InputFieldProps {
   type?: string;
   icon?: SvgIconComponent;
   theme: string;
+  required?: boolean;
 }
 
 // Move components outside to avoid remounting issues
@@ -91,9 +115,11 @@ const SectionHeader = ({ icon: Icon, title, subtitle, theme }: SectionHeaderProp
   </div>
 );
 
-const InputField = ({ label, placeholder, value, onChange, type = "text", icon: Icon, theme }: InputFieldProps) => (
+const InputField = ({ label, placeholder, value, onChange, type = "text", icon: Icon, theme, required }: InputFieldProps) => (
   <div className="space-y-1.5">
-    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block ml-1">{label}</label>
+    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block ml-1">
+      {label} {required && <span className="text-red-500 font-black ml-0.5">*</span>}
+    </label>
     <div className="relative group">
       {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" sx={{ fontSize: 16 }} />}
       <input
@@ -115,7 +141,7 @@ const InputField = ({ label, placeholder, value, onChange, type = "text", icon: 
   </div>
 );
 
-export default function InvoiceForm({ onClose }: InvoiceFormProps) {
+export default function InvoiceForm({ onClose, invoice: existingInvoice }: InvoiceFormProps) {
   const { theme } = useTheme();
   const { token } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -133,21 +159,47 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
     return now.toLocaleDateString('en-US', options);
   };
 
-  const initialFormData = useMemo(() => ({
-    invoiceNo: `INV-${Math.floor(Math.random() * 900000) + 100000}`,
-    sender: { name: '', phone1: '', phone2: '', email: '' },
-    customer: { name: '', phone: '', email: '' },
-    invoiceDate: getCurrentDate(),
-    dueDate: getDueDateDefault(),
-    billingCurrency: 'USD ($)',
-    items: [{ id: 1, description: '', quantity: 1, price: 0, total: 0 }],
-    notes: '',
-    discountRate: 0,
-    accountName: '',
-    accountNumber: '',
-    bankAddress: '',
-    achRoutingNo: ''
-  }), []);
+  const initialFormData = useMemo(() => {
+    if (existingInvoice) {
+      return {
+        invoiceNo: existingInvoice.invoiceNo || existingInvoice.invoiceNumber || `INV-${Math.floor(Math.random() * 900000) + 100000}`,
+        sender: existingInvoice.sender || { name: '', phone1: '', phone2: '', email: '' },
+        customer: {
+          name: existingInvoice.customer?.name || existingInvoice.customerName || existingInvoice.clientName || '',
+          phone: existingInvoice.customer?.phone || '',
+          email: existingInvoice.customer?.email || '',
+        },
+        invoiceDate: existingInvoice.invoiceDate || existingInvoice.date || getCurrentDate(),
+        dueDate: existingInvoice.dueDate || getDueDateDefault(),
+        billingCurrency: existingInvoice.billingCurrency || 'USD ($)',
+        items: existingInvoice.items?.length
+          ? existingInvoice.items
+          : [{ id: 1, description: '', quantity: 1, price: 0, total: 0 }],
+        notes: existingInvoice.notes || '',
+        discountRate: Number(existingInvoice.discountRate) || 0,
+        accountName: existingInvoice.accountName || '',
+        accountNumber: existingInvoice.accountNumber || '',
+        bankAddress: existingInvoice.bankAddress || '',
+        achRoutingNo: existingInvoice.achRoutingNo || '',
+      };
+    }
+    return {
+      invoiceNo: `INV-${Math.floor(Math.random() * 900000) + 100000}`,
+      sender: { name: '', phone1: '', phone2: '', email: '' },
+      customer: { name: '', phone: '', email: '' },
+      invoiceDate: getCurrentDate(),
+      dueDate: getDueDateDefault(),
+      billingCurrency: 'USD ($)',
+      items: [{ id: 1, description: '', quantity: 1, price: 0, total: 0 }],
+      notes: '',
+      discountRate: 0,
+      accountName: '',
+      accountNumber: '',
+      bankAddress: '',
+      achRoutingNo: ''
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [formData, setFormData] = useState<InvoiceFormData>(initialFormData);
 
@@ -190,9 +242,30 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
     }
   };
 
+  const getMissingMandatoryFields = () => {
+    const missing = [];
+    if (!formData.sender.name) missing.push('Entity Name');
+    if (!formData.sender.email) missing.push('Email Address');
+    if (!formData.sender.phone1) missing.push('Phone Number');
+    if (!formData.customer.name) missing.push('Customer Name');
+    if (!formData.customer.email) missing.push('Client Email');
+    if (!formData.customer.phone) missing.push('Contact Number');
+    if (!formData.accountName) missing.push('Account Name');
+    if (!formData.accountNumber) missing.push('Account Number');
+    if (formData.items.length === 0 || !formData.items.some(item => item.description.trim() !== '')) {
+      missing.push('at least one Invoice Item');
+    }
+    return missing;
+  };
+
   const createInvoice = async (action: 'save' | 'send') => {
-    if (!formData.sender.name || !formData.customer.name || formData.items.some(i => !i.description)) {
-      toast.error('Please fill in all required fields', { theme: theme === 'dark' ? 'dark' : 'light' });
+    // Unified validation for both save and send
+    const missing = getMissingMandatoryFields();
+    if (missing.length > 0) {
+      toast.error(`Please fill the mandatory fields: ${missing.join(', ')}`, { 
+        theme: theme === 'dark' ? 'dark' : 'light',
+        position: "top-center"
+      });
       return;
     }
 
@@ -202,9 +275,15 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
     }
 
     setIsSubmitting(true);
+    const isEditing = !!existingInvoice;
+    const url = isEditing
+      ? `${API_ENDPOINTS.INVOICES}/${existingInvoice!.id}`
+      : API_ENDPOINTS.INVOICES;
+    const method = isEditing ? 'PATCH' : 'POST';
+
     try {
-      const response = await fetch(API_ENDPOINTS.INVOICES, {
-        method: 'POST',
+      const response = await fetch(url, {
+        method,
         headers: { 
           'Content-Type': 'application/json', 
           'Authorization': `Bearer ${token}` 
@@ -212,8 +291,8 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
         body: JSON.stringify({
           ...formData,
           date: formData.invoiceDate,
-          title: formData.customer.name,
-          clientName: formData.customer.name,
+          title: formData.customer.name || `Draft: ${formData.invoiceNo}`,
+          clientName: formData.customer.name || 'Unspecified Client',
           amount: totalAmount.toFixed(2),
           status: action === 'send' ? 'pending payment' : 'draft',
           image: 'https://via.placeholder.com/300',
@@ -221,10 +300,18 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Session expired or invalid. Please log out and sign in again.', { theme: theme === 'dark' ? 'dark' : 'light' });
+          setIsSubmitting(false);
+          return;
+        }
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || 'Failed to create invoice');
+        throw new Error(errData.message || 'Failed to process invoice');
       }
-      toast.success(action === 'send' ? 'Invoice sent successfully!' : 'Invoice saved successfully!', { theme: theme === 'dark' ? 'dark' : 'light' });
+      const successMsg = action === 'send'
+        ? 'Invoice sent successfully!'
+        : (isEditing ? 'Draft updated successfully!' : 'Invoice saved successfully!');
+      toast.success(successMsg, { theme: theme === 'dark' ? 'dark' : 'light' });
       onClose();
     } catch (error) {
       toast.error('Failed to process invoice');
@@ -235,15 +322,17 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
 
   const [showConfirmClose, setShowConfirmClose] = useState(false);
 
+
+  const isFormDirty = useMemo(() => {
+    return JSON.stringify(formData) !== JSON.stringify(initialFormData);
+  }, [formData, initialFormData]);
+
   const handleCloseAttempt = () => {
-    // Robust check: Compare all fields except the random invoice number
-    const isDirty = JSON.stringify({ ...formData, invoiceNo: '' }) !== JSON.stringify({ ...initialFormData, invoiceNo: '' });
-    
-    if (isDirty) {
-      setShowConfirmClose(true);
-    } else {
+    if (!isFormDirty) {
       onClose();
+      return;
     }
+    setShowConfirmClose(true);
   };
 
   const ConfirmCloseModal = () => (
@@ -311,12 +400,12 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
              <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <DescriptionIcon className="text-white" />
              </div>
-             <div>
-                <h1 className={`text-xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  {formData.invoiceNo} <span className="text-blue-500 font-medium ml-2">DRAFT</span>
-                </h1>
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">New Invoice Details</p>
-             </div>
+              <div>
+                 <h1 className={`text-xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                   {formData.invoiceNo} <span className={`font-medium ml-2 ${existingInvoice ? 'text-amber-500' : 'text-blue-500'}`}>{existingInvoice ? 'EDITING' : 'DRAFT'}</span>
+                 </h1>
+                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{existingInvoice ? 'Edit saved draft — update and send' : 'New Invoice Details'}</p>
+              </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -342,10 +431,13 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
              </button>
              <button 
                 onClick={handleCloseAttempt} 
-                title="Close and save as draft"
-                className={`p-3 rounded-2xl transition-all active:scale-95 ${theme === 'dark' ? 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}
+                title={isFormDirty ? "Review unsaved changes" : "Close invoice"}
+                className={`p-3 rounded-2xl transition-all active:scale-95 relative group ${theme === 'dark' ? 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}
               >
                  <Close sx={{ fontSize: 22 }} />
+                 {isFormDirty && (
+                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-white dark:border-[#0f111a] rounded-full animate-pulse shadow-sm shadow-blue-500/50" />
+                 )}
               </button>
           </div>
         </div>
@@ -355,27 +447,29 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
              {/* Main Content Area */}
              <div className="lg:col-span-8 space-y-12">
-                
+
                 {/* Header Information Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-blue-50/30 border-blue-100'}`}>
                       <SectionHeader icon={Business} title="From" subtitle="Your Company Details" theme={theme} />
-                      <div className="space-y-4">
-                         <InputField label="Entity Name" placeholder="Your Company Name" value={formData.sender.name} onChange={(e) => setFormData({...formData, sender: {...formData.sender, name: e.target.value}})} icon={Business} theme={theme} />
-                         <InputField label="Email Address" placeholder="email@address.com" value={formData.sender.email} onChange={(e) => setFormData({...formData, sender: {...formData.sender, email: e.target.value}})} icon={Mail} theme={theme} />
-                         <div className="grid grid-cols-2 gap-4">
-                            <InputField label="Phone Number" placeholder="+1..." value={formData.sender.phone1} onChange={(e) => setFormData({...formData, sender: {...formData.sender, phone1: e.target.value}})} icon={Phone} theme={theme} />
-                            <InputField label="Secondary Phone" placeholder="+1..." value={formData.sender.phone2} onChange={(e) => setFormData({...formData, sender: {...formData.sender, phone2: e.target.value}})} icon={Phone} theme={theme} />
-                         </div>
-                      </div>
+                       <div className="space-y-4">
+                          <InputField label="Entity Name" required placeholder="Your Company Name" value={formData.sender.name} onChange={(e) => setFormData({...formData, sender: {...formData.sender, name: e.target.value}})} icon={Business} theme={theme} />
+                          <InputField label="Email Address" required placeholder="email@address.com" value={formData.sender.email} onChange={(e) => setFormData({...formData, sender: {...formData.sender, email: e.target.value}})} icon={Mail} theme={theme} />
+                          <div className="grid grid-cols-2 gap-4">
+                             <InputField label="Phone Number" required placeholder="+1..." value={formData.sender.phone1} onChange={(e) => setFormData({...formData, sender: {...formData.sender, phone1: e.target.value}})} icon={Phone} theme={theme} />
+                             <InputField label="Secondary Phone" placeholder="+1..." value={formData.sender.phone2} onChange={(e) => setFormData({...formData, sender: {...formData.sender, phone2: e.target.value}})} icon={Phone} theme={theme} />
+                          </div>
+                       </div>
                    </div>
 
                    <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-indigo-50/30 border-indigo-100'}`}>
                       <SectionHeader icon={Person} title="To" subtitle="Customer Details" theme={theme} />
                       <div className="space-y-4">
-                         <InputField label="Customer Name" placeholder="Customer Name" value={formData.customer.name} onChange={(e) => setFormData({...formData, customer: {...formData.customer, name: e.target.value}})} icon={Person} theme={theme} />
-                         <InputField label="Client Email" placeholder="client@address.com" value={formData.customer.email} onChange={(e) => setFormData({...formData, customer: {...formData.customer, email: e.target.value}})} icon={Mail} theme={theme} />
-                         <InputField label="Contact Number" placeholder="+1..." value={formData.customer.phone} onChange={(e) => setFormData({...formData, customer: {...formData.customer, phone: e.target.value}})} icon={Phone} theme={theme} />
+                       <div className="space-y-4">
+                          <InputField label="Customer Name" required placeholder="Customer Name" value={formData.customer.name} onChange={(e) => setFormData({...formData, customer: {...formData.customer, name: e.target.value}})} icon={Person} theme={theme} />
+                          <InputField label="Client Email" required placeholder="client@address.com" value={formData.customer.email} onChange={(e) => setFormData({...formData, customer: {...formData.customer, email: e.target.value}})} icon={Mail} theme={theme} />
+                          <InputField label="Contact Number" required placeholder="+1..." value={formData.customer.phone} onChange={(e) => setFormData({...formData, customer: {...formData.customer, phone: e.target.value}})} icon={Phone} theme={theme} />
+                       </div>
                       </div>
                    </div>
                 </div>
@@ -398,7 +492,7 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
                             {formData.items.map((item) => (
                                <tr key={item.id} className="group hover:bg-blue-500/5 transition-colors">
                                   <td className="px-6 py-4">
-                                     <textarea 
+                                     <textarea
                                         className={`w-full bg-transparent border-none focus:ring-0 text-sm font-semibold transition-all ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
                                         placeholder="Item description..."
                                         rows={1}
@@ -407,7 +501,7 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
                                      />
                                   </td>
                                   <td className="px-6 py-4">
-                                     <input 
+                                     <input
                                         type="number"
                                         className={`w-full bg-transparent border-none text-center focus:ring-0 text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
                                         value={item.quantity}
@@ -415,7 +509,7 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
                                      />
                                   </td>
                                   <td className="px-6 py-4">
-                                     <input 
+                                     <input
                                         type="number"
                                         className={`w-full bg-transparent border-none text-right focus:ring-0 text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
                                         value={item.price}
@@ -437,7 +531,7 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
                          </tbody>
                       </table>
                       <div className="p-4 bg-gray-50/50 dark:bg-gray-800/10">
-                         <button 
+                         <button
                             onClick={addItem}
                             className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${theme === 'dark' ? 'text-blue-400 hover:bg-blue-400/10' : 'text-blue-600 hover:bg-blue-50'}`}
                          >
@@ -457,9 +551,9 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
                       <div className="flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-widest">
                          <span>Discount Rate</span>
                          <div className="flex items-center gap-2">
-                            <input 
-                               type="number" 
-                               className="w-12 bg-transparent border-none text-right p-0 focus:ring-0 font-black text-rose-500" 
+                            <input
+                               type="number"
+                               className="w-12 bg-transparent border-none text-right p-0 focus:ring-0 font-black text-rose-500"
                                value={formData.discountRate}
                                onChange={(e) => setFormData({...formData, discountRate: Number(e.target.value)})}
                             />
@@ -479,34 +573,36 @@ export default function InvoiceForm({ onClose }: InvoiceFormProps) {
              {/* Sidebar Settings Area */}
              <div className="lg:col-span-4 space-y-8">
                 {/* Configuration Card */}
-                <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800 shadow-2xl' : 'bg-white border-gray-100 shadow-xl'}`}>
-                   <SectionHeader icon={Payment} title="Invoice Settings" subtitle="Dates and Currency" theme={theme} />
-                   <div className="space-y-6">
-                      <InputField label="Invoice Date" value={formData.invoiceDate} onChange={(e) => setFormData({...formData, invoiceDate: e.target.value})} icon={CalendarMonth} theme={theme} />
-                      <InputField label="Due Date" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} icon={CalendarMonth} theme={theme} />
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Currency</label>
-                         <select 
-                            className={`w-full py-2.5 rounded-xl border text-sm font-semibold transition-all ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-100 text-gray-900'}`}
-                            value={formData.billingCurrency}
-                            onChange={(e) => setFormData({...formData, billingCurrency: e.target.value})}
-                         >
-                            <option>USD ($)</option>
-                            <option>EUR (€)</option>
-                            <option>GBP (£)</option>
-                            <option>NGN (₦)</option>
-                         </select>
-                      </div>
-                   </div>
-                </div>
+                 <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800 shadow-2xl' : 'bg-white border-gray-100 shadow-xl'}`}>
+                    <SectionHeader icon={History} title="Invoice Schedule" subtitle="Dates and Currency" theme={theme} />
+                     <div className="space-y-6">
+                        <InputField label="Invoice Date" value={formData.invoiceDate} onChange={(e) => setFormData({...formData, invoiceDate: e.target.value})} icon={CalendarMonth} theme={theme} />
+                        <InputField label="Due Date" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} icon={CalendarMonth} theme={theme} />
+                        
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Billing Currency</label>
+                          <select
+                             className={`w-full py-2.5 rounded-xl border text-sm font-semibold transition-all ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-100 text-gray-900'}`}
+                             value={formData.billingCurrency}
+                             onChange={(e) => setFormData({...formData, billingCurrency: e.target.value})}
+                          >
+                             <option>USD ($)</option>
+                             <option>EUR (€)</option>
+                             <option>GBP (£)</option>
+                             <option>NGN (₦)</option>
+                          </select>
+                       </div>
+                    </div>
+                 </div>
 
                 {/* Settlement Instructions */}
-                <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-emerald-50/20 border-emerald-100'}`}>
-                   <SectionHeader icon={AccountBalanceWallet} title="Payment Details" subtitle="Bank Information" theme={theme} />
-                   <div className="space-y-4">
-                      <InputField label="Account Name" placeholder="Full Account Name" value={formData.accountName} onChange={(e) => setFormData({...formData, accountName: e.target.value})} theme={theme} />
-                      <InputField label="Account Number" placeholder="Account or IBAN" value={formData.accountNumber} onChange={(e) => setFormData({...formData, accountNumber: e.target.value})} theme={theme} />
-                      <InputField label="Routing / SWIFT" placeholder="SWIFT / ACH / SORT" value={formData.achRoutingNo} onChange={(e) => setFormData({...formData, achRoutingNo: e.target.value})} theme={theme} />
+                <div className={`p-8 rounded-[2rem] border ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800 shadow-2xl' : 'bg-white border-gray-100 shadow-xl'}`}>
+                   <SectionHeader icon={AccountBalanceWallet} title="Payment Details" subtitle="Bank Settlement Information" theme={theme} />
+                   <div className="space-y-6">
+                      <InputField label="Account Name" required placeholder="Full Account Name" value={formData.accountName} onChange={(e) => setFormData({...formData, accountName: e.target.value})} icon={AccountBalanceWallet} theme={theme} />
+                      <InputField label="Account Number" required placeholder="Account or IBAN" value={formData.accountNumber} onChange={(e) => setFormData({...formData, accountNumber: e.target.value})} icon={ReceiptLong} theme={theme} />
+                      <InputField label="Bank Address" placeholder="City, Country" value={formData.bankAddress} onChange={(e) => setFormData({...formData, bankAddress: e.target.value})} icon={Business} theme={theme} />
+                      <InputField label="Routing / SWIFT" placeholder="SWIFT / ACH / SORT" value={formData.achRoutingNo} onChange={(e) => setFormData({...formData, achRoutingNo: e.target.value})} icon={Payment} theme={theme} />
                    </div>
                 </div>
 

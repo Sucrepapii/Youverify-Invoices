@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Notifications, Search, Menu, DarkMode, LightMode, KeyboardArrowDown, Logout, Person, Settings as SettingsIcon } from '@mui/icons-material';
+import { Notifications, Search, Menu, DarkMode, LightMode, KeyboardArrowDown, Logout, Person } from '@mui/icons-material';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 interface DashboardHeaderProps {
@@ -19,6 +21,8 @@ interface NotificationData {
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onMenuClick }) => {
   const { socket } = useSocket();
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -41,6 +45,12 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onMenuClick }) => {
       };
     }
   }, [socket, theme]);
+
+  const getUserInitials = () => {
+    if (!user || (!user.name && !user.email)) return 'JD';
+    const name = user.name || user.email;
+    return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+  };
 
   return (
     <header className={`
@@ -143,11 +153,15 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onMenuClick }) => {
                 `}
               >
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${theme === 'dark' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-indigo-600 text-white'}`}>
-                  JD
+                  {getUserInitials()}
                 </div>
                 <div className="hidden sm:flex flex-col items-start">
-                  <span className={`text-xs font-black leading-none ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>John Doe</span>
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Admin</span>
+                  <span className={`text-xs font-black leading-none ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    {user?.name || user?.email?.split('@')[0] || 'User'}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                    {user?.role || 'Admin'}
+                  </span>
                 </div>
                 <KeyboardArrowDown sx={{ fontSize: 16 }} className={`transition-transform duration-300 ${showProfileDropdown ? 'rotate-180' : ''}`} />
               </button>
@@ -158,22 +172,28 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onMenuClick }) => {
                   ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'}
                 `}>
                   <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 mb-1">
-                    <p className={`text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>John Doe</p>
-                    <p className="text-[10px] font-bold text-gray-500">john@example.com</p>
+                    <p className={`text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user?.name || 'User'}</p>
+                    <p className="text-[10px] font-bold text-gray-500">{user?.email || ''}</p>
                   </div>
                   
-                  <button className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold transition-colors ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-800 hover:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-blue-600'}`}>
+                  <button 
+                    onClick={() => {
+                        navigate('/profile');
+                        setShowProfileDropdown(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold transition-colors ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-800 hover:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-blue-600'}`}>
                     <Person sx={{ fontSize: 16 }} />
                     My Profile
-                  </button>
-                  <button className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold transition-colors ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-800 hover:text-white' : 'text-gray-600 hover:bg-gray-50 hover:text-blue-600'}`}>
-                    <SettingsIcon sx={{ fontSize: 16 }} />
-                    Settings
                   </button>
                   
                   <div className="h-[1px] bg-gray-100 dark:bg-gray-800 my-1" />
                   
-                  <button className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold transition-colors text-rose-500 hover:bg-rose-500/5`}>
+                  <button 
+                    onClick={() => {
+                        logout();
+                        navigate('/login');
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold transition-colors text-rose-500 hover:bg-rose-500/5`}>
                     <Logout sx={{ fontSize: 16 }} />
                     Sign Out
                   </button>

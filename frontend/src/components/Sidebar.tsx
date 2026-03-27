@@ -6,7 +6,7 @@ import {
   Home,
   ReceiptLong,
   People,
-  Settings,
+  Person,
   AccountBalanceWallet,
   PieChart,
   HelpOutline,
@@ -41,7 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: ReceiptLong, label: 'Invoices', path: '/recent-invoices', hasRoute: true },
     { icon: People, label: 'Beneficiaries', path: '/beneficiaries', hasRoute: true },
     { icon: HelpOutline, label: 'Support', path: '/support', hasRoute: true },
-    { icon: Settings, label: 'Settings', path: '/settings', hasRoute: true },
+    { icon: Person, label: 'My Profile', path: '/profile', hasRoute: true },
   ];
 
   const isActive = (path: string) => {
@@ -197,4 +197,4 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   );
 };
 
-export default Sidebar;
+export default Sidebar;

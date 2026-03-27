@@ -68,8 +68,20 @@ async function remove(id) {
   writeToFile(invoices);
 }
 
+async function updateStatus(id, status) {
+  const invoices = readFromFile();
+  const index = invoices.findIndex((invoice) => invoice.id === id);
+  if (index < 0) {
+    throw new NotFoundError("Could not find invoice for id " + id);
+  }
+  invoices[index].status = status;
+  writeToFile(invoices);
+  return invoices[index];
+}
+
 exports.getAll = getAll;
 exports.get = get;
 exports.add = add;
 exports.replace = replace;
 exports.remove = remove;
+exports.updateStatus = updateStatus;

@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: `${API_URL}/auth/login`,
     SIGNUP: `${API_URL}/auth/signup`,
+    ME: `${API_URL}/auth/me`,
   },
   INVOICES: `${API_URL}/invoices`,
 };

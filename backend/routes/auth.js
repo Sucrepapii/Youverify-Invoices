@@ -1,6 +1,6 @@
 const express = require('express');
-const { add, get } = require('../data/user');
-const { createJSONToken, isValidPassword } = require('../util/auth');
+const { add, get, update } = require('../data/user');
+const { createJSONToken, isValidPassword, checkAuth } = require('../util/auth');
 const { isValidEmail, isValidText } = require('../util/validation');
 
 const router = express.Router();
@@ -63,6 +63,27 @@ router.post('/login', async (req, res) => {
 
   const token = createJSONToken(email);
   res.json({ token });
+});
+
+router.get('/me', checkAuth, async (req, res, next) => {
+  try {
+    const user = await get(req.token.email);
+    // Don't send password
+    const { password, ...userProfile } = user;
+    res.json(userProfile);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/me', checkAuth, async (req, res, next) => {
+  const data = req.body;
+  try {
+    const updatedUser = await update(req.token.email, data);
+    res.json({ message: 'Profile updated.', user: updatedUser });
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = router;

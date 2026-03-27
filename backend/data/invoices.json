@@ -1,1 +1,41 @@
-[]
+[
+  {
+    "invoiceNo": "INV-683141",
+    "sender": {
+      "name": "hdshdh",
+      "phone1": "09024129891",
+      "phone2": "",
+      "email": "akinboroo@gmail.com"
+    },
+    "customer": {
+      "name": "Samuel Olatomide Akinboro",
+      "phone": "09024129891",
+      "email": "akinboroo@gmail.com"
+    },
+    "invoiceDate": "March 26, 2026",
+    "dueDate": "April 25, 2026",
+    "billingCurrency": "USD ($)",
+    "items": [
+      {
+        "id": 1,
+        "description": "Developer Fees",
+        "quantity": 1,
+        "price": "1000",
+        "total": 1000
+      }
+    ],
+    "notes": "",
+    "discountRate": 0,
+    "accountName": "SAmuel Akinboro",
+    "accountNumber": "9024129891",
+    "bankAddress": "",
+    "achRoutingNo": "",
+    "date": "March 26, 2026",
+    "title": "Samuel Olatomide Akinboro",
+    "clientName": "Samuel Olatomide Akinboro",
+    "amount": "1000.00",
+    "status": "done",
+    "image": "https://via.placeholder.com/300",
+    "id": "ba0e7bea-5d57-4ae7-bbfa-c8717d6874ac"
+  }
+]
