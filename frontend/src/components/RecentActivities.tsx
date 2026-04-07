@@ -5,7 +5,9 @@ import {
   Refresh, 
   Mail, 
   Receipt,
-  MoreVert
+  MoreVert,
+  Edit,
+  Delete
 } from '@mui/icons-material';
 import { useTheme } from '../context/ThemeContext';
 import { io } from 'socket.io-client';
@@ -23,33 +25,48 @@ interface Activity {
 const RecentActivities: React.FC = () => {
   const { theme } = useTheme();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Initial fetch
+    const fetchActivities = async () => {
+      try {
+        const response = await fetch(`${API_URL}/activities`);
+        if (response.ok) {
+          const data = await response.json();
+          setActivities(data.activities);
+        }
+      } catch (error) {
+        console.error('Failed to fetch activities:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchActivities();
+
     const socket = io(API_URL);
 
-    socket.on('invoiceActivity', (newActivity: Activity) => {
-      setActivities(prev => [newActivity, ...prev].slice(0, 10));
+    socket.on('invoice:activity', (newActivity: Activity) => {
+      setActivities(prev => {
+        // Prevent duplicate activities if socket event is received fast
+        if (prev.some(a => a.id === newActivity.id)) return prev;
+        return [newActivity, ...prev].slice(0, 50);
+      });
     });
-
-    // Mock initial activities if empty
-    if (activities.length === 0) {
-      setActivities([
-        { id: '1', type: 'create', message: 'New invoice generated for Client #882', timestamp: new Date().toISOString(), invoiceId: 'INV-2024-001' },
-        { id: '2', type: 'email_sent', message: 'Billing notice dispatched to Apple Inc.', timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), invoiceId: 'INV-2024-002' },
-        { id: '3', type: 'status_change', message: 'Invoice #992 marked as cleared', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), invoiceId: 'INV-2024-003' },
-      ]);
-    }
 
     return () => {
       socket.disconnect();
     };
-  }, [activities.length]);
+  }, []);
 
   const getIcon = (type: string) => {
     switch (type) {
       case 'create': return <Receipt sx={{ fontSize: 14 }} />;
       case 'status_change': return <CheckCircle sx={{ fontSize: 14 }} />;
       case 'email_sent': return <Mail sx={{ fontSize: 14 }} />;
+      case 'update': return <Edit sx={{ fontSize: 14 }} />;
+      case 'delete': return <Delete sx={{ fontSize: 14 }} />;
       default: return <Refresh sx={{ fontSize: 14 }} />;
     }
   };
@@ -59,6 +76,8 @@ const RecentActivities: React.FC = () => {
       case 'create': return 'text-blue-500 bg-blue-500/10';
       case 'status_change': return 'text-emerald-500 bg-emerald-500/10';
       case 'email_sent': return 'text-violet-500 bg-violet-500/10';
+      case 'update': return 'text-amber-500 bg-amber-500/10';
+      case 'delete': return 'text-rose-500 bg-rose-500/10';
       default: return 'text-gray-500 bg-gray-500/10';
     }
   };
@@ -89,32 +108,45 @@ const RecentActivities: React.FC = () => {
       <div className="relative space-y-8">
         <div className={`absolute left-5 top-2 bottom-2 w-[1.5px] ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}></div>
         
-        {activities.map((activity) => (
-          <div key={activity.id} className="relative flex gap-6 group">
-            <div className={`relative z-10 w-10 h-10 rounded-xl flex items-center justify-center border-2 ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-white shadow-sm'} group-hover:scale-110 transition-transform`}>
-               <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${getColor(activity.type)}`}>
-                  {getIcon(activity.type)}
-               </div>
-            </div>
-            
-            <div className="flex-1 pt-0.5">
-              <div className="flex items-center justify-between mb-1">
-                 <p className={`text-[11px] font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-                    {activity.message}
-                 </p>
-                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                    {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                 </span>
-              </div>
-              {activity.invoiceId && (
-                 <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${theme === 'dark' ? 'bg-gray-800/50 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
-                    <Receipt sx={{ fontSize: 10 }} />
-                    {activity.invoiceId}
-                 </div>
-              )}
-            </div>
+        {isLoading ? (
+          <div className="flex justify-center p-4">
+            <Refresh className="animate-spin text-gray-400" />
           </div>
-        ))}
+        ) : activities.length === 0 ? (
+          <p className="text-center text-gray-500 py-4 text-xs">No recent activity</p>
+        ) : (
+          activities.map((activity) => (
+            <div key={activity.id} className="relative flex gap-6 group">
+              <div className={`relative z-10 w-10 h-10 rounded-xl flex items-center justify-center border-2 ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-white shadow-sm'} group-hover:scale-110 transition-transform`}>
+                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${getColor(activity.type)}`}>
+                    {getIcon(activity.type)}
+                 </div>
+              </div>
+              
+              <div className="flex-1 pt-0.5">
+                <div className="flex items-center justify-between mb-1">
+                   <p className={`text-[11px] font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                      {activity.message}
+                   </p>
+                   <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                      {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                   </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {activity.invoiceId && (
+                     <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${theme === 'dark' ? 'bg-gray-800/50 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                        <Receipt sx={{ fontSize: 10 }} />
+                        {activity.invoiceId}
+                     </div>
+                  )}
+                  {activity.user && (
+                    <span className="text-[9px] text-gray-500 font-medium italic">by {activity.user}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
 
         <button className={`w-full mt-4 py-3 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${theme === 'dark' ? 'border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800' : 'border-gray-100 text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}>
            View Full activity log

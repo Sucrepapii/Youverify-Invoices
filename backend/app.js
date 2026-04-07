@@ -7,6 +7,7 @@ const authRoutes = require("./routes/auth");
 const invoicesRoutes = require("./routes/invoices");
 const beneficiariesRoutes = require("./routes/beneficiaries");
 const accountsRoutes = require("./routes/accounts");
+const { getAll: getAllActivities } = require("./data/activity");
 
 const app = express();
 const server = http.createServer(app);
@@ -56,6 +57,16 @@ app.use("/auth", authRoutes);
 app.use("/invoices", invoicesRoutes);
 app.use("/beneficiaries", beneficiariesRoutes);
 app.use("/accounts", accountsRoutes);
+
+// Activity logs
+app.get("/activities", async (req, res, next) => {
+  try {
+    const activities = await getAllActivities();
+    res.json({ activities });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Error handling middleware
 app.use((error, req, res, next) => {

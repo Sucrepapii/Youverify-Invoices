@@ -18,7 +18,23 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import InvoiceForm from './InvoiceForm';
+const EXCHANGE_RATES: Record<string, number> = {
+  'USD ($)': 1.0,
+  'EUR (€)': 0.92,
+  'GBP (£)': 0.79,
+  'NGN (₦)': 1580.0,
+};
+
+const convertToUSD = (amount: number, currency: string) => {
+  if (!currency || currency === '$' || currency === 'USD ($)') return amount;
+  
+  // Try to find rate by symbol or full string
+  const rate = EXCHANGE_RATES[currency] || 
+               Object.entries(EXCHANGE_RATES).find(([k]) => k.includes(currency))?.[1] || 
+               1.0;
+               
+  return amount / rate;
+};
 import { API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -82,13 +98,13 @@ const InvoiceOverview: React.FC = () => {
   
             setStats({
               totalPaidCount: paid.length,
-              totalPaidAmount: paid.reduce((sum: number, inv: { amount: number }) => sum + Number(inv.amount), 0),
+              totalPaidAmount: paid.reduce((sum: number, inv: any) => sum + convertToUSD(Number(inv.amount), inv.billingCurrency || inv.currency || '$'), 0),
               overdueCount: overdue.length,
-              overdueAmount: overdue.reduce((sum: number, inv: { amount: number }) => sum + Number(inv.amount), 0),
+              overdueAmount: overdue.reduce((sum: number, inv: any) => sum + convertToUSD(Number(inv.amount), inv.billingCurrency || inv.currency || '$'), 0),
               draftCount: draft.length,
-              draftAmount: draft.reduce((sum: number, inv: { amount: number }) => sum + Number(inv.amount), 0),
+              draftAmount: draft.reduce((sum: number, inv: any) => sum + convertToUSD(Number(inv.amount), inv.billingCurrency || inv.currency || '$'), 0),
               unpaidCount: unpaid.length,
-              unpaidAmount: unpaid.reduce((sum: number, inv: { amount: number }) => sum + Number(inv.amount), 0)
+              unpaidAmount: unpaid.reduce((sum: number, inv: any) => sum + convertToUSD(Number(inv.amount), inv.billingCurrency || inv.currency || '$'), 0)
             });
           }
         }

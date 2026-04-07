@@ -79,6 +79,25 @@ interface ExistingInvoice {
   [key: string]: unknown;
 }
 
+interface Beneficiary {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  accountName?: string;
+  accountNumber?: string;
+  bankName?: string;
+}
+
+interface Account {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  bankAddress?: string;
+  achRoutingNo?: string;
+}
+
 interface InvoiceFormProps {
   onClose: () => void;
   invoice?: ExistingInvoice;
@@ -140,6 +159,26 @@ const InputField = ({ label, placeholder, value, onChange, type = "text", icon: 
     </div>
   </div>
 );
+
+const getCurrencySymbol = (billingCurrency: string) => {
+  const match = billingCurrency.match(/\(([^)]+)\)/);
+  return match ? match[1] : '$';
+};
+
+const EXCHANGE_RATES: Record<string, number> = {
+  'USD ($)': 1.0,
+  'EUR (€)': 0.92,
+  'GBP (£)': 0.79,
+  'NGN (₦)': 1580.0,
+};
+
+const convertAmount = (amount: number, fromCurrency: string, toCurrency: string) => {
+  const fromRate = EXCHANGE_RATES[fromCurrency] || 1.0;
+  const toRate = EXCHANGE_RATES[toCurrency] || 1.0;
+  // Convert to USD first, then to target currency
+  const usdAmount = amount / fromRate;
+  return usdAmount * toRate;
+};
 
 export default function InvoiceForm({ onClose, invoice: existingInvoice }: InvoiceFormProps) {
   const { theme } = useTheme();
@@ -272,6 +311,7 @@ export default function InvoiceForm({ onClose, invoice: existingInvoice }: Invoi
   const subtotal = formData.items.reduce((sum, item) => sum + item.total, 0);
   const discountAmount = subtotal * (formData.discountRate / 100);
   const totalAmount = subtotal - discountAmount;
+  const currencySymbol = getCurrencySymbol(formData.billingCurrency);
 
   const handleItemChange = (id: number, field: keyof InvoiceItem, value: string | number) => {
     setFormData(prev => ({
@@ -354,6 +394,7 @@ export default function InvoiceForm({ onClose, invoice: existingInvoice }: Invoi
           amount: totalAmount.toFixed(2),
           status: action === 'send' ? 'pending payment' : 'draft',
           image: 'https://via.placeholder.com/300',
+          currency: currencySymbol, // Ensure symbol is saved for dashboard
         }),
       });
 
@@ -369,6 +410,7 @@ export default function InvoiceForm({ onClose, invoice: existingInvoice }: Invoi
       const successMsg = action === 'send'
         ? 'Invoice sent successfully!'
         : (isEditing ? 'Draft updated successfully!' : 'Invoice saved successfully!');
+      
       toast.success(successMsg, { theme: theme === 'dark' ? 'dark' : 'light' });
       onClose();
     } catch (error) {
@@ -599,7 +641,7 @@ export default function InvoiceForm({ onClose, invoice: existingInvoice }: Invoi
                                   </td>
                                   <td className="px-6 py-4 text-right">
                                      <span className={`text-sm font-black ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                                        ${item.total.toLocaleString()}
+                                        {currencySymbol}{item.total.toLocaleString()}
                                      </span>
                                   </td>
                                   <td className="px-6 py-4 text-center">
@@ -627,7 +669,7 @@ export default function InvoiceForm({ onClose, invoice: existingInvoice }: Invoi
                    <div className={`w-full max-sm p-8 rounded-[2rem] border space-y-4 ${theme === 'dark' ? 'bg-gray-800/20 border-gray-800' : 'bg-gray-50/30 border-gray-100'}`}>
                       <div className="flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-widest">
                          <span>Subtotal</span>
-                         <span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>${subtotal.toLocaleString()}</span>
+                         <span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>{currencySymbol}{subtotal.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-widest">
                          <span>Discount Rate</span>
@@ -644,7 +686,7 @@ export default function InvoiceForm({ onClose, invoice: existingInvoice }: Invoi
                       <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
                          <span className="text-sm font-black uppercase tracking-[0.2em] text-blue-500">Total Due</span>
                          <span className={`text-3xl font-black tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            ${totalAmount.toLocaleString()}
+                            {currencySymbol}{totalAmount.toLocaleString()}
                          </span>
                       </div>
                    </div>
@@ -665,7 +707,21 @@ export default function InvoiceForm({ onClose, invoice: existingInvoice }: Invoi
                           <select
                              className={`w-full py-2.5 rounded-xl border text-sm font-semibold transition-all ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-100 text-gray-900'}`}
                              value={formData.billingCurrency}
-                             onChange={(e) => setFormData({...formData, billingCurrency: e.target.value})}
+                             onChange={(e) => {
+                                const newCurrency = e.target.value;
+                                const oldCurrency = formData.billingCurrency;
+                                
+                                setFormData(prev => ({
+                                  ...prev,
+                                  billingCurrency: newCurrency,
+                                  items: prev.items.map(item => ({
+                                    ...item,
+                                    price: Number(convertAmount(item.price, oldCurrency, newCurrency).toFixed(2)),
+                                    total: Number(convertAmount(item.total, oldCurrency, newCurrency).toFixed(2))
+                                  })),
+                                  discountRate: prev.discountRate // Rate is percentage, stays same
+                                }));
+                              }}
                           >
                              <option>USD ($)</option>
                              <option>EUR (€)</option>

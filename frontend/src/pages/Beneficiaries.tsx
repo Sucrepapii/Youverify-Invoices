@@ -82,9 +82,12 @@ export default function Beneficiaries() {
         setIsModalOpen(false);
         setFormData({ name: '', email: '', phone: '', accountName: '', accountNumber: '', bankName: '' });
         fetchBeneficiaries();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to add beneficiary');
       }
     } catch (error) {
-      toast.error('Failed to add beneficiary');
+      toast.error('Network error. Please check your connection.');
     }
   };
 
@@ -280,6 +283,16 @@ export default function Beneficiaries() {
                       placeholder="e.g. Zenith Bank"
                       value={formData.bankName}
                       onChange={(e) => setFormData({...formData, bankName: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Account Name</label>
+                    <input 
+                      type="text" 
+                      className={`w-full px-4 py-3 rounded-xl border text-sm transition-all outline-none ${theme === 'dark' ? 'bg-gray-800/40 border-gray-700 text-white focus:border-blue-500' : 'bg-gray-50 border-gray-100 text-gray-900 focus:bg-white focus:border-blue-500'}`}
+                      placeholder="e.g. John Doe & Sons"
+                      value={formData.accountName}
+                      onChange={(e) => setFormData({...formData, accountName: e.target.value})}
                     />
                   </div>
                   <div>

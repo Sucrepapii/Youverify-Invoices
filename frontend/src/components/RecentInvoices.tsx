@@ -149,6 +149,13 @@ const RecentInvoices: React.FC = () => {
     return new Date(inv.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const getCurrencyDisplay = (inv: any) => {
+    const billingCurrency = inv.billingCurrency || '';
+    const match = billingCurrency.match(/\(([^)]+)\)/);
+    if (match) return match[1];
+    return inv.currency || 'NGN';
+  };
+
   const filtered = invoices.filter(inv => {
     const matchesSearch =
       getDisplayName(inv).toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -320,7 +327,7 @@ const RecentInvoices: React.FC = () => {
                         {/* Amount */}
                         <div className="text-right">
                           <p className={`text-base font-black ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {invoice.currency || 'NGN'} {getAmount(invoice).toLocaleString()}
+                            {getCurrencyDisplay(invoice)}{getAmount(invoice).toLocaleString()}
                           </p>
                           {invoice.items && (
                             <p className="text-[10px] font-bold text-gray-400">

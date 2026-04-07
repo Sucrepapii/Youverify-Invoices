@@ -1,0 +1,18 @@
+[
+  {
+    "id": "9d8cd0fc-5dca-4f1b-83f8-d909fe8fea15",
+    "timestamp": "2026-04-06T09:49:36.574Z",
+    "type": "status_change",
+    "message": "Invoice INV-5269 status updated to cancelled",
+    "invoiceId": "INV-5269",
+    "user": "akinboroo@gmail.com"
+  },
+  {
+    "id": "ddc99a4f-d14d-49e9-aa22-7192c9ffeb55",
+    "timestamp": "2026-04-06T09:45:16.493Z",
+    "type": "create",
+    "message": "New invoice created: Samuel Olatomide Akinboro",
+    "invoiceId": "INV-6925",
+    "user": "akinboroo@gmail.com"
+  }
+]

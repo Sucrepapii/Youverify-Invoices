@@ -1,6 +1,8 @@
 const express = require("express");
 
 const { getAll, get, add, replace, remove, updateStatus } = require("../data/invoice");
+const { add: addActivity } = require("../data/activity");
+const beneficiaryData = require("../data/beneficiary");
 const { checkAuth } = require("../util/auth");
 const {
   isValidText,
@@ -60,12 +62,34 @@ router.post("/", async (req, res, next) => {
   try {
     const newInvoice = await add(data);
 
+    // Auto-save beneficiary if customer is new
+    if (data.customer && data.customer.email) {
+      const beneficiaries = await beneficiaryData.getAll(req.token.email);
+      const exists = beneficiaries.find(b => b.email.toLowerCase() === data.customer.email.toLowerCase());
+      if (!exists) {
+        console.log('Auto-saving beneficiary from invoice:', data.customer.email);
+        await beneficiaryData.create(req.token.email, {
+          name: data.customer.name || 'Unnamed Client',
+          email: data.customer.email,
+          phone: data.customer.phone || '',
+          accountName: data.accountName || '',
+          accountNumber: data.accountNumber || '',
+          bankName: data.bankAddress || ''
+        });
+      }
+    }
+
+    // Create activity
+    const activity = await addActivity({
+      type: 'create',
+      message: `New invoice created: ${newInvoice.title}`,
+      invoiceId: newInvoice.invoiceNumber,
+      user: req.token?.email || 'System'
+    });
+
     // Emit event with detailed invoice information
     if (req.io) {
-      req.io.emit("invoice:created", {
-        message: `New invoice created: ${newInvoice.title}`,
-        invoice: newInvoice,
-      });
+      req.io.emit("invoice:activity", activity);
     }
 
     res.status(201).json({ message: "Invoice saved.", invoice: newInvoice });
@@ -118,6 +142,20 @@ router.patch("/:id/status", async (req, res, next) => {
   }
   try {
     const updated = await updateStatus(req.params.id, status);
+
+    // Create activity
+    const activity = await addActivity({
+      type: 'status_change',
+      message: `Invoice ${updated.invoiceNumber} status updated to ${status}`,
+      invoiceId: updated.invoiceNumber,
+      user: req.token?.email || 'System'
+    });
+
+    // Emit activity
+    if (req.io) {
+      req.io.emit("invoice:activity", activity);
+    }
+
     res.json({ message: "Invoice status updated.", invoice: updated });
   } catch (error) {
     next(error);

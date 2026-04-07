@@ -18,9 +18,12 @@ router.get('/', async (req, res) => {
 // Create a new beneficiary
 router.post('/', async (req, res) => {
   try {
+    console.log('Creating new beneficiary for:', req.token.email, req.body);
     const newBeneficiary = await beneficiaryData.create(req.token.email, req.body);
+    console.log('Beneficiary created successfully:', newBeneficiary.id);
     res.status(201).json(newBeneficiary);
   } catch (error) {
+    console.error('Failed to create beneficiary:', error);
     res.status(500).json({ message: 'Error creating beneficiary' });
   }
 });

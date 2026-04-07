@@ -80,9 +80,49 @@
     "title": "Gold Client",
     "clientName": "Gold Client",
     "amount": "2100.00",
-    "status": "draft",
+    "status": "cancelled",
     "image": "https://via.placeholder.com/300",
     "id": "51358f08-4ec4-4ba8-aed0-98830ecaa3c0",
     "invoiceNumber": "INV-5269"
+  },
+  {
+    "invoiceNo": "INV-835911",
+    "sender": {
+      "name": "hoopers",
+      "phone1": "0908766554",
+      "phone2": "",
+      "email": "akinboroo@gmail.com"
+    },
+    "customer": {
+      "name": "Samuel Olatomide Akinboro",
+      "phone": "098765446789",
+      "email": "akinboroo@gmail.com"
+    },
+    "invoiceDate": "April 6, 2026",
+    "dueDate": "May 6, 2026",
+    "billingCurrency": "EUR (€)",
+    "items": [
+      {
+        "id": 1,
+        "description": "hoopers",
+        "quantity": 1,
+        "price": "06700",
+        "total": 6700
+      }
+    ],
+    "notes": "",
+    "discountRate": 0,
+    "accountName": "hoopers",
+    "accountNumber": "009090990909",
+    "bankAddress": "Lagos",
+    "achRoutingNo": "",
+    "date": "April 6, 2026",
+    "title": "Samuel Olatomide Akinboro",
+    "clientName": "Samuel Olatomide Akinboro",
+    "amount": "6700.00",
+    "status": "draft",
+    "image": "https://via.placeholder.com/300",
+    "currency": "€",
+    "id": "6df82e56-2f91-4e3f-9e1c-929efceea660"
   }
 ]
